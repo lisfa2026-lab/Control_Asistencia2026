@@ -128,14 +128,14 @@ const AttendanceHistory = ({ user, onLogout }) => {
                 <div className="space-y-2">
                   <Label htmlFor="filter-role">Rol</Label>
                   <Select
-                    value={filters.role}
-                    onValueChange={(value) => setFilters({ ...filters, role: value })}
+                    value={filters.role || "all"}
+                    onValueChange={(value) => setFilters({ ...filters, role: value === "all" ? "" : value })}
                   >
                     <SelectTrigger data-testid="filter-role">
                       <SelectValue placeholder="Todos" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="student">Estudiantes</SelectItem>
                       <SelectItem value="teacher">Maestros</SelectItem>
                     </SelectContent>
