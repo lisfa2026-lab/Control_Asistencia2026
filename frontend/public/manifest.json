@@ -1,0 +1,17 @@
+{
+  "short_name": "LISFA",
+  "name": "LISFA - Control de Asistencia",
+  "description": "Sistema de Control de Asistencia - Liceo San Francisco de Asís",
+  "icons": [
+    {
+      "src": "/static/logos/logo.jpeg",
+      "type": "image/jpeg",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#c41e3a",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}
