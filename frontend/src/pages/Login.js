@@ -77,7 +77,7 @@ const Login = ({ onLogin }) => {
         <div className="flex-1 text-center lg:text-left space-y-6">
           <div className="flex justify-center lg:justify-start">
             <img 
-              src={`${BACKEND_URL}/static/logos/logo.jpeg`} 
+              src="/logo.jpeg" 
               alt="LISFA Logo" 
               className="w-32 h-32 object-contain"
             />
