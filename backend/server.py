@@ -349,13 +349,30 @@ async def record_attendance(attendance_data: AttendanceCreate):
     
     # Send notification to parents if student
     if user['role'] == 'student':
-        parent = await db.parents.find_one({"student_ids": user_id}, {"_id": 0})
-        if parent and parent.get('notification_email'):
-            await send_email_notification(
-                parent['notification_email'],
-                f"Asistencia de {user['full_name']}",
-                f"{user['full_name']} ha registrado su asistencia a las {current_time.strftime('%H:%M')}."
-            )
+        # Get all parents linked to this student
+        parents = await db.parents.find({"student_ids": user_id}, {"_id": 0}).to_list(100)
+        
+        if parents:
+            parent_emails = []
+            for parent in parents:
+                if parent.get('notification_email'):
+                    parent_emails.append(parent['notification_email'])
+                else:
+                    # Try to get email from parent's user record
+                    parent_user = await db.users.find_one({"id": parent['user_id']}, {"_id": 0})
+                    if parent_user and parent_user.get('email'):
+                        parent_emails.append(parent_user['email'])
+            
+            if parent_emails:
+                # Send real-time notification
+                event_type = 'exit' if existing and not existing.get('check_out_time') else 'entry'
+                notification_results = await NotificationService.send_realtime_notification(
+                    user_name=user['full_name'],
+                    event_type=event_type,
+                    event_time=current_time,
+                    parent_emails=parent_emails
+                )
+                logger.info(f"Notifications sent: {notification_results}")
     
     return attendance
 
