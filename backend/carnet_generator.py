@@ -1,8 +1,12 @@
 from reportlab.lib.pagesizes import letter
-from reportlab.lib.units import cm
+from reportlab.lib.units import cm, mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
-from PIL import Image
+from reportlab.lib import colors
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from PIL import Image, ImageDraw
 from io import BytesIO
 import qrcode
 import os
@@ -10,9 +14,9 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
 
-# Dimensiones del carnet: 5.5cm x 8.5cm
-CARD_WIDTH = 5.5 * cm
-CARD_HEIGHT = 8.5 * cm
+# Dimensiones estándar de tarjeta de crédito/carnet: 85.6 x 54 mm
+CARD_WIDTH = 85.6 * mm
+CARD_HEIGHT = 54 * mm
 
 # Colores institucionales
 COLOR_AZUL_OSCURO = (0.12, 0.23, 0.37)  # #1e3a5f
