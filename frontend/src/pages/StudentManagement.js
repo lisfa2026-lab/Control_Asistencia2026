@@ -102,38 +102,58 @@ const StudentManagement = ({ user, onLogout }) => {
 
   const handleDownloadCard = async (studentId) => {
     try {
-      toast.loading("Generando carnet...");
+      toast.loading("Generando carnet...", { id: 'carnet-loading' });
       
       const response = await axios.get(`${API}/cards/generate/${studentId}`, {
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/pdf'
+        }
       });
       
-      toast.dismiss();
+      toast.dismiss('carnet-loading');
+      
+      // Verificar que recibimos un PDF
+      if (response.data.type !== 'application/pdf') {
+        throw new Error('El servidor no devolvió un PDF válido');
+      }
       
       // Crear URL del blob
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       
-      // OPCIÓN 1: Abrir en nueva pestaña para ver el carnet
-      window.open(url, '_blank');
+      console.log('PDF Blob creado:', {
+        size: blob.size,
+        type: blob.type,
+        url: url
+      });
       
-      // OPCIÓN 2: También ofrecer descarga directa
-      const link = document.createElement('a');
-      link.href = url;
-      const student = students.find(s => s.id === studentId);
-      const fileName = `carnet_${student ? student.full_name.replace(/\s+/g, '_') : studentId}.pdf`;
-      link.setAttribute('download', fileName);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // OPCIÓN 1: Abrir en nueva pestaña
+      const newWindow = window.open(url, '_blank');
+      if (!newWindow) {
+        toast.error('Por favor permite ventanas emergentes y vuelve a intentar');
+        // Si falla, intentar descarga directa
+        const link = document.createElement('a');
+        link.href = url;
+        const student = students.find(s => s.id === studentId);
+        const fileName = `carnet_${student ? student.full_name.replace(/\s+/g, '_') : studentId}.pdf`;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast.success('Carnet descargado. Busca en tu carpeta de Descargas.');
+      } else {
+        toast.success('Carnet abierto en nueva pestaña');
+      }
       
       // Limpiar URL después de un tiempo
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
+      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
       
-      toast.success("¡Carnet generado! Se abrió en nueva pestaña y se descargó.");
     } catch (error) {
-      toast.dismiss();
-      console.error("Error al descargar carnet:", error);
-      toast.error("Error al generar el carnet: " + (error.response?.data?.detail || error.message));
+      toast.dismiss('carnet-loading');
+      console.error("Error completo al descargar carnet:", error);
+      console.error("Response data:", error.response?.data);
+      toast.error("Error al generar el carnet. Revisa la consola para más detalles.");
     }
   };
 
