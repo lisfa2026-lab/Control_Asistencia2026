@@ -27,8 +27,7 @@ const Login = ({ onLogin }) => {
     password: "",
     full_name: "",
     role: "student",
-    grade: "",
-    section: ""
+    category: ""
   });
 
   const handleLogin = async (e) => {
