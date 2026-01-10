@@ -217,7 +217,7 @@ const Login = ({ onLogin }) => {
                         <Users className="absolute left-3 top-3 h-5 w-5 text-gray-400 z-10" />
                         <Select
                           value={registerData.role}
-                          onValueChange={(value) => setRegisterData({ ...registerData, role: value })}
+                          onValueChange={(value) => setRegisterData({ ...registerData, role: value, category: "" })}
                         >
                           <SelectTrigger data-testid="register-role" className="pl-10">
                             <SelectValue placeholder="Seleccionar rol" />
@@ -225,36 +225,29 @@ const Login = ({ onLogin }) => {
                           <SelectContent>
                             <SelectItem value="student">Estudiante</SelectItem>
                             <SelectItem value="teacher">Maestro</SelectItem>
+                            <SelectItem value="staff">Personal</SelectItem>
                             <SelectItem value="parent">Padre de Familia</SelectItem>
                             <SelectItem value="admin">Administrador</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
-                    {registerData.role === "student" && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="register-grade">Grado</Label>
-                          <Input
-                            id="register-grade"
-                            data-testid="register-grade"
-                            type="text"
-                            placeholder="1ro, 2do, etc."
-                            value={registerData.grade}
-                            onChange={(e) => setRegisterData({ ...registerData, grade: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="register-section">Sección</Label>
-                          <Input
-                            id="register-section"
-                            data-testid="register-section"
-                            type="text"
-                            placeholder="A, B, C"
-                            value={registerData.section}
-                            onChange={(e) => setRegisterData({ ...registerData, section: e.target.value })}
-                          />
-                        </div>
+                    {(registerData.role === "student" || registerData.role === "teacher" || registerData.role === "staff") && (
+                      <div className="space-y-2">
+                        <Label htmlFor="register-category">Categoría</Label>
+                        <Select
+                          value={registerData.category}
+                          onValueChange={(value) => setRegisterData({ ...registerData, category: value })}
+                        >
+                          <SelectTrigger data-testid="register-category">
+                            <SelectValue placeholder="Seleccionar categoría" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60 overflow-y-auto">
+                            {(registerData.role === "student" ? CATEGORIAS_ESTUDIANTES : CATEGORIAS_PERSONAL).map((cat) => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     )}
                     <Button 
