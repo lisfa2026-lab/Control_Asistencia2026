@@ -57,12 +57,12 @@ class CarnetGenerator:
     
     @staticmethod
     def generate_qr_image(data: str, size: int = 150) -> BytesIO:
-        """Genera imagen QR en memoria"""
+        """Genera imagen QR en memoria optimizada"""
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=10,
-            border=2,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,  # M en vez de H
+            box_size=8,  # Reducido de 10
+            border=1,  # Reducido de 2
         )
         qr.add_data(data)
         qr.make(fit=True)
@@ -71,7 +71,8 @@ class CarnetGenerator:
         img = img.resize((size, size), Image.Resampling.LANCZOS)
         
         buffer = BytesIO()
-        img.save(buffer, format='PNG')
+        # Optimizar PNG
+        img.save(buffer, format='PNG', optimize=True)
         buffer.seek(0)
         return buffer
     
