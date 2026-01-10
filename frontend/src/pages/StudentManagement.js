@@ -100,75 +100,32 @@ const StudentManagement = ({ user, onLogout }) => {
     }
   };
 
-  const handleDownloadCard = async (studentId) => {
-    try {
-      toast.loading("Generando carnet...", { id: 'carnet-loading' });
-      
-      const response = await axios.get(`${API}/cards/generate/${studentId}`, {
-        responseType: 'blob',
-        headers: {
-          'Accept': 'application/pdf'
-        }
-      });
-      
-      toast.dismiss('carnet-loading');
-      
-      // Verificar que recibimos un PDF
-      if (response.data.type !== 'application/pdf') {
-        throw new Error('El servidor no devolvió un PDF válido');
-      }
-      
-      // Crear URL del blob
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      
-      // Obtener nombre del estudiante
-      const student = students.find(s => s.id === studentId);
-      const fileName = `carnet_${student ? student.full_name.replace(/\s+/g, '_') : studentId}.pdf`;
-      
-      // DESCARGA DIRECTA (más confiable)
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', fileName);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Mensaje con instrucciones
+  const handleDownloadCard = (studentId) => {
+    // Descargar directo desde el backend - sin blobs, sin complicaciones
+    const student = students.find(s => s.id === studentId);
+    const fileName = student ? student.full_name.replace(/\s+/g, '_') : studentId;
+    
+    toast.loading("Generando carnet...", { id: 'carnet-gen' });
+    
+    // Crear link directo al endpoint
+    const downloadUrl = `${API}/cards/generate/${studentId}`;
+    
+    // Usar window.location o crear link temporal
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `carnet_${fileName}.pdf`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => {
+      toast.dismiss('carnet-gen');
       toast.success(
-        <div>
-          <strong>✅ Carnet descargado!</strong>
-          <br />
-          <small>Busca en tu carpeta Descargas:</small>
-          <br />
-          <small><code>{fileName}</code></small>
-        </div>,
-        { duration: 5000 }
+        `Carnet descargado: carnet_${fileName}.pdf\nRevisa tu carpeta de Descargas`,
+        { duration: 4000 }
       );
-      
-      // Opcional: También abrir en nueva pestaña
-      setTimeout(() => {
-        const viewWindow = window.open(url, '_blank');
-        if (!viewWindow) {
-          toast.info('Habilita ventanas emergentes para ver el carnet en el navegador');
-        }
-      }, 500);
-      
-      // Limpiar URL después
-      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
-      
-    } catch (error) {
-      toast.dismiss('carnet-loading');
-      console.error("Error al descargar carnet:", error);
-      toast.error(
-        <div>
-          <strong>Error al generar carnet</strong>
-          <br />
-          <small>{error.response?.data?.detail || error.message}</small>
-        </div>
-      );
-    }
+    }, 1000);
   };
 
   const openAddDialog = () => {
