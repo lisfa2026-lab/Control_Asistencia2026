@@ -168,8 +168,8 @@ class CarnetGenerator:
                     preserveAspectRatio=True,
                     mask='auto'
                 )
-                except Exception:
-                    pass
+            except Exception:
+                pass
         
         # === NOMBRE DEL LICEO ===
         c.setFillColorRGB(1, 1, 1)
