@@ -58,8 +58,7 @@ const Login = ({ onLogin }) => {
         password: "",
         full_name: "",
         role: "student",
-        grade: "",
-        section: ""
+        category: ""
       });
     } catch (error) {
       toast.error(error.response?.data?.detail || "Error al registrarse");
