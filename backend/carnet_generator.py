@@ -105,7 +105,7 @@ class CarnetGenerator:
             output.save(buffer, format='PNG', optimize=True)
             buffer.seek(0)
             return buffer
-        except Exception as e:
+        except Exception:
             # Si falla, retornar None
             return None
     
