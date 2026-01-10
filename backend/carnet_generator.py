@@ -197,7 +197,7 @@ class CarnetGenerator:
                             height=photo_size,
                             mask='auto'
                         )
-                    except:
+                    except Exception:
                         # Fallback: rectángulo gris
                         c.setFillColorRGB(0.85, 0.85, 0.85)
                         c.circle(photo_x + photo_size/2, photo_y + photo_size/2, photo_size/2, fill=1, stroke=0)
