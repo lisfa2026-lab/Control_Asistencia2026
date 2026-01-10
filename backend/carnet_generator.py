@@ -225,7 +225,10 @@ class CarnetGenerator:
         c.setFont("Helvetica", 8)
         c.setFillColorRGB(0.4, 0.4, 0.4)
         category = user_data.get('category', user_data.get('grade', 'N/A'))
-        c.drawString(info_x, info_y, category[:25])
+        if category:
+            c.drawString(info_x, info_y, category[:25])
+        else:
+            c.drawString(info_x, info_y, 'N/A')
         
         # ID
         info_y -= 4*mm
