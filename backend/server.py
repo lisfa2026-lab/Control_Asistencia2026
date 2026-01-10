@@ -273,6 +273,45 @@ async def create_parent(parent_data: ParentCreate):
     await db.parents.insert_one(parent_dict)
     return parent
 
+@api_router.post("/parents/link")
+async def link_parent_to_student(
+    parent_user_id: str,
+    student_id: str,
+    notification_email: str
+):
+    """Vincular un padre con un estudiante"""
+    # Verificar que el padre exista
+    parent_user = await db.users.find_one({"id": parent_user_id, "role": "parent"}, {"_id": 0})
+    if not parent_user:
+        raise HTTPException(status_code=404, detail="Padre no encontrado")
+    
+    # Verificar que el estudiante exista
+    student = await db.users.find_one({"id": student_id, "role": "student"}, {"_id": 0})
+    if not student:
+        raise HTTPException(status_code=404, detail="Estudiante no encontrado")
+    
+    # Crear o actualizar vinculación
+    result = await db.parents.update_one(
+        {"user_id": parent_user_id},
+        {
+            "$addToSet": {"student_ids": student_id},
+            "$set": {
+                "notification_email": notification_email
+            }
+        },
+        upsert=True
+    )
+    
+    if result.upserted_id or result.modified_count > 0:
+        return {
+            "message": "Vinculación exitosa",
+            "parent": parent_user['full_name'],
+            "student": student['full_name'],
+            "notification_email": notification_email
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Error al vincular")
+
 @api_router.get("/parents/{user_id}", response_model=Parent)
 async def get_parent(user_id: str):
     parent = await db.parents.find_one({"user_id": user_id}, {"_id": 0})
@@ -297,6 +336,26 @@ async def get_parent_students(user_id: str):
             del student['timestamp']
     
     return students
+
+@api_router.get("/parents/by-student/{student_id}")
+async def get_parents_by_student(student_id: str):
+    """Obtener todos los padres vinculados a un estudiante"""
+    parents = await db.parents.find({"student_ids": student_id}, {"_id": 0}).to_list(100)
+    
+    # Obtener información completa de cada padre
+    parent_info = []
+    for parent in parents:
+        parent_user = await db.users.find_one({"id": parent['user_id']}, {"_id": 0, "password": 0})
+        if parent_user:
+            parent_info.append({
+                "parent_id": parent['user_id'],
+                "parent_name": parent_user['full_name'],
+                "parent_email": parent_user['email'],
+                "notification_email": parent.get('notification_email', parent_user['email']),
+                "phone": parent.get('phone')
+            })
+    
+    return parent_info
 
 # Attendance Routes
 @api_router.post("/attendance", response_model=Attendance)
