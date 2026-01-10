@@ -432,53 +432,21 @@ async def generate_id_card(user_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Create PDF
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=(3.375*inch, 2.125*inch))  # Standard ID card size
+    # Preparar datos del usuario para el carnet
+    user_data = {
+        'id': user['id'],
+        'full_name': user['full_name'],
+        'student_id': user.get('student_id', user['id'][:8].upper()),
+        'category': user.get('category') or user.get('grade', 'N/A'),
+        'role': user['role'],
+        'photo_url': user.get('photo_url'),
+        'qr_data': user['id']
+    }
     
-    # Background
-    c.setFillColorRGB(0.77, 0.12, 0.23)  # Red color from logo
-    c.rect(0, 0, 3.375*inch, 0.5*inch, fill=True, stroke=False)
+    # Generar carnet usando el nuevo generador
+    pdf_buffer = CarnetGenerator.generate_carnet(user_data)
     
-    # Logo
-    logo_path = ROOT_DIR / "static" / "logos" / "logo.jpeg"
-    if logo_path.exists():
-        c.drawImage(str(logo_path), 0.2*inch, 1.5*inch, width=0.5*inch, height=0.5*inch, preserveAspectRatio=True)
-    
-    # Text
-    c.setFillColorRGB(1, 1, 1)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(0.8*inch, 1.8*inch, "LISFA")
-    c.setFont("Helvetica", 6)
-    c.drawString(0.8*inch, 1.65*inch, "Liceo San Francisco de Asís")
-    
-    # User info
-    c.setFillColorRGB(0, 0, 0)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(0.2*inch, 1.2*inch, user['full_name'])
-    
-    c.setFont("Helvetica", 8)
-    c.drawString(0.2*inch, 1.0*inch, f"Rol: {user['role'].upper()}")
-    if user.get('student_id'):
-        c.drawString(0.2*inch, 0.85*inch, f"ID: {user['student_id']}")
-    if user.get('grade'):
-        c.drawString(0.2*inch, 0.7*inch, f"Grado: {user['grade']} - {user.get('section', '')}")
-    
-    # QR Code
-    if user.get('qr_code'):
-        # Decode base64 QR code
-        qr_data = user['qr_code'].split(',')[1]
-        qr_img_data = base64.b64decode(qr_data)
-        qr_img = Image.open(BytesIO(qr_img_data))
-        qr_buffer = BytesIO()
-        qr_img.save(qr_buffer, format='PNG')
-        qr_buffer.seek(0)
-        c.drawImage(ImageReader(qr_buffer), 2.3*inch, 0.3*inch, width=0.9*inch, height=0.9*inch)
-    
-    c.save()
-    buffer.seek(0)
-    
-    return StreamingResponse(buffer, media_type="application/pdf", headers={
+    return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
         "Content-Disposition": f"attachment; filename={user['full_name']}_carnet.pdf"
     })
 
