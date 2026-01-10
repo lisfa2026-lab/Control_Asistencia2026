@@ -37,7 +37,7 @@ const AdminDashboard = ({ user, onLogout }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <img 
-                src={`${BACKEND_URL}/static/logos/logo.jpeg`} 
+                src="/logo.jpeg" 
                 alt="LISFA" 
                 className="w-12 h-12 object-contain"
               />
