@@ -428,27 +428,44 @@ async def get_attendance_stats(user_id: str, start_date: Optional[str] = None, e
 # ID Card Generation
 @api_router.get("/cards/generate/{user_id}")
 async def generate_id_card(user_id: str):
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Preparar datos del usuario para el carnet
-    user_data = {
-        'id': user['id'],
-        'full_name': user['full_name'],
-        'student_id': user.get('student_id', user['id'][:8].upper()),
-        'category': user.get('category') or user.get('grade', 'N/A'),
-        'role': user['role'],
-        'photo_url': user.get('photo_url'),
-        'qr_data': user['id']
-    }
-    
-    # Generar carnet usando el nuevo generador
-    pdf_buffer = CarnetGenerator.generate_carnet(user_data)
-    
-    return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
-        "Content-Disposition": f"attachment; filename={user['full_name']}_carnet.pdf"
-    })
+    try:
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not user:
+            logger.error(f"User not found: {user_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        logger.info(f"Generating card for user: {user.get('full_name', 'Unknown')}")
+        
+        # Preparar datos del usuario para el carnet
+        user_data = {
+            'id': user['id'],
+            'full_name': user.get('full_name', 'Sin Nombre'),
+            'student_id': user.get('student_id', user['id'][:8].upper()),
+            'category': user.get('category') or user.get('grade', 'N/A'),
+            'role': user.get('role', 'student'),
+            'photo_url': user.get('photo_url'),
+            'qr_data': user['id']
+        }
+        
+        logger.info(f"User data prepared: {user_data}")
+        
+        # Generar carnet usando el nuevo generador
+        pdf_buffer = CarnetGenerator.generate_carnet(user_data)
+        
+        if not pdf_buffer or pdf_buffer.getbuffer().nbytes == 0:
+            logger.error("Generated PDF is empty")
+            raise HTTPException(status_code=500, detail="Error generating PDF")
+        
+        logger.info(f"PDF generated successfully: {pdf_buffer.getbuffer().nbytes} bytes")
+        
+        return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
+            "Content-Disposition": f"attachment; filename={user.get('full_name', 'carnet').replace(' ', '_')}_carnet.pdf"
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating card: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating card: {str(e)}")
 
 # Dashboard Stats
 @api_router.get("/dashboard/stats")
