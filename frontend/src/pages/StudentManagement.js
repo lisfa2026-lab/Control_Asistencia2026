@@ -122,38 +122,52 @@ const StudentManagement = ({ user, onLogout }) => {
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       
-      console.log('PDF Blob creado:', {
-        size: blob.size,
-        type: blob.type,
-        url: url
-      });
+      // Obtener nombre del estudiante
+      const student = students.find(s => s.id === studentId);
+      const fileName = `carnet_${student ? student.full_name.replace(/\s+/g, '_') : studentId}.pdf`;
       
-      // OPCIÓN 1: Abrir en nueva pestaña
-      const newWindow = window.open(url, '_blank');
-      if (!newWindow) {
-        toast.error('Por favor permite ventanas emergentes y vuelve a intentar');
-        // Si falla, intentar descarga directa
-        const link = document.createElement('a');
-        link.href = url;
-        const student = students.find(s => s.id === studentId);
-        const fileName = `carnet_${student ? student.full_name.replace(/\s+/g, '_') : studentId}.pdf`;
-        link.setAttribute('download', fileName);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        toast.success('Carnet descargado. Busca en tu carpeta de Descargas.');
-      } else {
-        toast.success('Carnet abierto en nueva pestaña');
-      }
+      // DESCARGA DIRECTA (más confiable)
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', fileName);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      // Limpiar URL después de un tiempo
-      setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+      // Mensaje con instrucciones
+      toast.success(
+        <div>
+          <strong>✅ Carnet descargado!</strong>
+          <br />
+          <small>Busca en tu carpeta Descargas:</small>
+          <br />
+          <small><code>{fileName}</code></small>
+        </div>,
+        { duration: 5000 }
+      );
+      
+      // Opcional: También abrir en nueva pestaña
+      setTimeout(() => {
+        const viewWindow = window.open(url, '_blank');
+        if (!viewWindow) {
+          toast.info('Habilita ventanas emergentes para ver el carnet en el navegador');
+        }
+      }, 500);
+      
+      // Limpiar URL después
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
       
     } catch (error) {
       toast.dismiss('carnet-loading');
-      console.error("Error completo al descargar carnet:", error);
-      console.error("Response data:", error.response?.data);
-      toast.error("Error al generar el carnet. Revisa la consola para más detalles.");
+      console.error("Error al descargar carnet:", error);
+      toast.error(
+        <div>
+          <strong>Error al generar carnet</strong>
+          <br />
+          <small>{error.response?.data?.detail || error.message}</small>
+        </div>
+      );
     }
   };
 
