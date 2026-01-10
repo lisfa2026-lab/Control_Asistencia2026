@@ -56,11 +56,12 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     full_name: str
-    role: str  # 'admin', 'teacher', 'student', 'parent'
+    role: str  # 'admin', 'teacher', 'student', 'parent', 'staff'
     photo_url: Optional[str] = None
     student_id: Optional[str] = None  # For students
-    grade: Optional[str] = None  # For students
-    section: Optional[str] = None  # For students
+    category: Optional[str] = None  # Categoría específica (ej: "1ro. Primaria", "Secretaria")
+    grade: Optional[str] = None  # Deprecated - usar category
+    section: Optional[str] = None  # Deprecated - usar category
     qr_code: Optional[str] = None  # QR code data for students/teachers
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
