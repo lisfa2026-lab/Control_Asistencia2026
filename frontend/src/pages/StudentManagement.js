@@ -314,8 +314,8 @@ const StudentManagement = ({ user, onLogout }) => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor={`photo-${student.id}`} className="cursor-pointer">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor={`photo-${student.id}`} className="flex-1">
                       <Button variant="outline" size="sm" className="w-full" asChild>
                         <span>
                           <Upload className="w-4 h-4 mr-2" />
@@ -332,17 +332,19 @@ const StudentManagement = ({ user, onLogout }) => {
                     />
                   </div>
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     className="w-full"
                     onClick={() => handleDownloadCard(student.id)}
                     data-testid={`download-card-${student.id}`}
+                    style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #142740 100%)' }}
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Descargar Carnet
+                    Ver/Descargar Carnet
                   </Button>
                   {student.qr_code && (
                     <div className="mt-2 p-2 bg-white rounded-lg border">
+                      <p className="text-xs text-center text-gray-600 mb-1">Código QR</p>
                       <img src={student.qr_code} alt="QR Code" className="w-full" />
                     </div>
                   )}
