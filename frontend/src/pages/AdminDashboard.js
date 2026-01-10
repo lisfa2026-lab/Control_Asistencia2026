@@ -149,6 +149,20 @@ const AdminDashboard = ({ user, onLogout }) => {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/parent-link')} data-testid="parent-link-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #f4c430 0%, #d4a017 100%)' }}>
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Vincular Padres</h3>
+                  <p className="text-sm text-gray-600">Configurar notificaciones</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
