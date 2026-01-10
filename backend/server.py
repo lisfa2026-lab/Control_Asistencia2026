@@ -471,6 +471,18 @@ async def get_dashboard_stats():
         "attendance_rate": round((today_present / students_count * 100) if students_count > 0 else 0, 2)
     }
 
+# Categories
+@api_router.get("/categories")
+async def get_categories():
+    """Obtener categorías disponibles por rol"""
+    from carnet_generator import CATEGORIAS_ESTUDIANTES, CATEGORIAS_PERSONAL
+    return {
+        "student": CATEGORIAS_ESTUDIANTES,
+        "staff": CATEGORIAS_PERSONAL,
+        "teacher": CATEGORIAS_PERSONAL,
+        "admin": CATEGORIAS_PERSONAL
+    }
+
 # Include the router in the main app
 app.include_router(api_router)
 
