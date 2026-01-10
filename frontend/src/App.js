@@ -119,6 +119,16 @@ function App() {
               )
             }
           />
+          <Route
+            path="/parent-link"
+            element={
+              user && user.role === "admin" ? (
+                <ParentLink user={user} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
