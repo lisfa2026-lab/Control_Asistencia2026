@@ -458,9 +458,15 @@ async def generate_id_card(user_id: str):
         
         logger.info(f"PDF generated successfully: {pdf_buffer.getbuffer().nbytes} bytes")
         
-        return StreamingResponse(pdf_buffer, media_type="application/pdf", headers={
-            "Content-Disposition": f"attachment; filename={user.get('full_name', 'carnet').replace(' ', '_')}_carnet.pdf"
-        })
+        return StreamingResponse(
+            pdf_buffer, 
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename={user.get('full_name', 'carnet').replace(' ', '_')}_carnet.pdf",
+                "Cache-Control": "no-cache",
+                "X-Content-Type-Options": "nosniff"
+            }
+        )
     except HTTPException:
         raise
     except Exception as e:
