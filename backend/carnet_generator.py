@@ -234,7 +234,9 @@ class CarnetGenerator:
         info_y -= 4*mm
         c.setFont("Helvetica", 7)
         c.setFillColorRGB(0.5, 0.5, 0.5)
-        student_id = user_data.get('student_id', user_data.get('id', 'N/A')[:8])
+        student_id = user_data.get('student_id', user_data.get('id', 'N/A'))
+        if student_id and len(student_id) > 8:
+            student_id = student_id[:8]
         c.drawString(info_x, info_y, f"ID: {student_id}")
         
         # === CÓDIGO QR (GRANDE, CENTRADO ABAJO) ===
