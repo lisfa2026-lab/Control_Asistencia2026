@@ -103,7 +103,10 @@ class CarnetGenerator:
         c.rect(0, 0, CARD_WIDTH, 0.3*cm, fill=True, stroke=False)
         
         # Logo LISFA
-        logo_path = ROOT_DIR / "static" / "logos" / "logo.jpeg"
+        logo_path = ROOT_DIR / "static" / "logos" / "logo_optimized.jpeg"
+        if not logo_path.exists():
+            logo_path = ROOT_DIR / "static" / "logos" / "logo.jpeg"
+        
         if logo_path.exists():
             try:
                 c.drawImage(
