@@ -39,7 +39,7 @@ sudo supervisorctl restart backend
 
 ### Opción A: Desde la Interfaz (Recomendado)
 
-1. **Login como admin**: https://liceo-attendance.preview.emergentagent.com
+1. **Login como admin**: https://attendance-track-24.preview.emergentagent.com
    - Email: `admin@lisfa.com`
    - Password: `admin123`
 
@@ -89,7 +89,7 @@ db.parents.insertOne({
 ### Test Desde Terminal (Opcional)
 
 ```bash
-curl -X POST "https://liceo-attendance.preview.emergentagent.com/api/attendance" \
+curl -X POST "https://attendance-track-24.preview.emergentagent.com/api/attendance" \
   -H "Content-Type: application/json" \
   -d '{
     "qr_data": "21b495dd-ff0c-48b8-a0d5-2b1ef052df9b",
@@ -215,8 +215,8 @@ Una vez configurado correctamente:
 
 ## 📞 URLs Importantes
 
-- **Sistema:** https://liceo-attendance.preview.emergentagent.com
-- **Vincular Padres:** https://liceo-attendance.preview.emergentagent.com/parent-link
+- **Sistema:** https://attendance-track-24.preview.emergentagent.com
+- **Vincular Padres:** https://attendance-track-24.preview.emergentagent.com/parent-link
 - **Contraseñas Gmail:** https://myaccount.google.com/apppasswords
 - **SendGrid:** https://sendgrid.com
 - **Mailgun:** https://mailgun.com
