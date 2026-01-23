@@ -130,6 +130,10 @@ function App() {
               )
             }
           />
+          <Route
+            path="/descargas"
+            element={<Downloads />}
+          />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
