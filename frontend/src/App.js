@@ -9,6 +9,7 @@ import StudentManagement from "@/pages/StudentManagement";
 import AttendanceScanner from "@/pages/AttendanceScanner";
 import AttendanceHistory from "@/pages/AttendanceHistory";
 import ParentLink from "@/pages/ParentLink";
+import Downloads from "@/pages/Downloads";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
