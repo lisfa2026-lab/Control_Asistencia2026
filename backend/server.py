@@ -1,6 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
-from passlib.context import CryptContext
+import hashlib
+import secrets
 from jose import JWTError, jwt
 import qrcode
 from io import BytesIO
@@ -31,21 +32,53 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get('DB_NAME', 'lisfa_attendance')]
 
 # JWT Configuration
 SECRET_KEY = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing using hashlib (compatible with all environments)
+def hash_password(password: str) -> str:
+    """Hash password using SHA256 with salt"""
+    salt = secrets.token_hex(16)
+    pwd_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+    return f"{salt}${pwd_hash}"
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash"""
+    try:
+        if '$' not in hashed_password:
+            # Legacy bcrypt hash - try to verify with passlib
+            try:
+                from passlib.context import CryptContext
+                pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+                return pwd_context.verify(plain_password, hashed_password)
+            except Exception:
+                return False
+        salt, pwd_hash = hashed_password.split('$', 1)
+        check_hash = hashlib.sha256((plain_password + salt).encode()).hexdigest()
+        return check_hash == pwd_hash
+    except Exception:
+        return False
 
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# Health check endpoint for Kubernetes
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Kubernetes"""
+    return JSONResponse(content={"status": "healthy", "service": "lisfa-backend"})
+
+@app.get("/api/health")
+async def api_health_check():
+    """API Health check endpoint"""
+    return JSONResponse(content={"status": "healthy", "service": "lisfa-backend"})
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(ROOT_DIR / "static")), name="static")
