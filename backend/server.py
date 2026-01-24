@@ -568,13 +568,16 @@ async def get_categories():
 # Endpoint para descargar ZIP del proyecto
 @api_router.get("/download/proyecto")
 async def download_proyecto():
-    """Descarga el archivo ZIP del proyecto"""
-    zip_path = ROOT_DIR / "static" / "proyecto_LISFA.zip"
+    """Descarga el archivo ZIP del proyecto completo"""
+    zip_path = ROOT_DIR / "static" / "proyecto_LISFA_completo.zip"
+    if not zip_path.exists():
+        # Fallback al archivo anterior
+        zip_path = ROOT_DIR / "static" / "proyecto_LISFA.zip"
     if not zip_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
     return FileResponse(
         path=str(zip_path),
-        filename="proyecto_LISFA.zip",
+        filename="proyecto_LISFA_completo.zip",
         media_type="application/zip"
     )
 
