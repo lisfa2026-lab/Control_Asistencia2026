@@ -108,15 +108,15 @@ const AdminDashboard = ({ user, onLogout }) => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="card-hover cursor-pointer" onClick={() => navigate('/students')} data-testid="manage-students-card">
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/usuarios')} data-testid="manage-users-card">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-4">
                 <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #c41e3a 0%, #8b1529 100%)' }}>
                   <Users className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Gestionar Estudiantes</h3>
-                  <p className="text-sm text-gray-600">Agregar, editar y ver estudiantes</p>
+                  <h3 className="text-lg font-semibold">Gestionar Usuarios y Carnets</h3>
+                  <p className="text-sm text-gray-600">Estudiantes, docentes, personal</p>
                 </div>
               </div>
             </CardContent>
@@ -157,8 +157,22 @@ const AdminDashboard = ({ user, onLogout }) => {
                   <Users className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Vincular Padres</h3>
-                  <p className="text-sm text-gray-600">Configurar notificaciones</p>
+                  <h3 className="text-lg font-semibold">Vincular Padres e Hijos</h3>
+                  <p className="text-sm text-gray-600">Un padre = múltiples hijos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/students')} data-testid="manage-students-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)' }}>
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Estudiantes (Vista Simple)</h3>
+                  <p className="text-sm text-gray-600">Lista rápida de estudiantes</p>
                 </div>
               </div>
             </CardContent>
