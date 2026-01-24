@@ -491,17 +491,32 @@ async def generate_id_card(user_id: str):
         user = await db.users.find_one({"id": user_id}, {"_id": 0})
         if not user:
             logger.error(f"User not found: {user_id}")
-            raise HTTPException(status_code=404, detail="User not found")
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # Los padres NO tienen carnet
+        if user.get('role') == 'parent':
+            raise HTTPException(status_code=400, detail="Los padres no requieren carnet de identificación")
         
         logger.info(f"Generating card for user: {user.get('full_name', 'Unknown')}")
+        
+        # Generar código de identificación según el rol
+        role = user.get('role', 'student')
+        if role == 'student':
+            user_code = user.get('student_id', f"EST{user['id'][:6].upper()}")
+        elif role == 'teacher':
+            user_code = user.get('teacher_id', f"DOC{user['id'][:6].upper()}")
+        elif role == 'admin':
+            user_code = user.get('admin_id', f"ADM{user['id'][:6].upper()}")
+        else:
+            user_code = f"PER{user['id'][:6].upper()}"
         
         # Preparar datos del usuario para el carnet
         user_data = {
             'id': user['id'],
             'full_name': user.get('full_name', 'Sin Nombre'),
-            'student_id': user.get('student_id', user['id'][:8].upper()),
+            'student_id': user_code,
             'category': user.get('category') or user.get('grade', 'N/A'),
-            'role': user.get('role', 'student'),
+            'role': role,
             'photo_url': user.get('photo_url'),
             'qr_data': user['id']
         }
