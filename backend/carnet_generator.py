@@ -357,7 +357,7 @@ class CarnetGenerator:
         c.setFillColorRGB(*COLOR_TEXTO_GRIS)
         c.drawString(3*mm, info_section_y, "Contacto:")
         c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.drawRightString(CARD_WIDTH - 3*mm, info_section_y, "+503 7001-0003")
+        c.drawRightString(CARD_WIDTH - 3*mm, info_section_y, "+502 30624815")
         
         info_section_y -= 3*mm
         
