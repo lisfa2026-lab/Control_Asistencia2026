@@ -237,7 +237,8 @@ export default function UserManagement({ user, onLogout }) {
                 </CardContent>
               </Card>
             </TabsContent>
-          ))}
+            );
+          })}
         </Tabs>
       </main>
 
