@@ -126,7 +126,17 @@ function App() {
             path="/parent-link"
             element={
               user && user.role === "admin" ? (
-                <ParentLink user={user} onLogout={handleLogout} />
+                <ParentChildLink user={user} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/usuarios"
+            element={
+              user && user.role === "admin" ? (
+                <UserManagement user={user} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
