@@ -31,3 +31,7 @@ Thumbs.db
 coverage/
 .pytest_cache/
 project_LISA.zip
+-e 
+# Environment files
+*.env
+*.env.*
