@@ -49,20 +49,26 @@ def hash_password(password: str) -> str:
     return f"{salt}${pwd_hash}"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
+    """Verify password against hash - supports legacy bcrypt and new SHA256"""
     try:
-        if '$' not in hashed_password:
-            # Legacy bcrypt hash - try to verify with passlib
+        # Check if it's a bcrypt hash (starts with $2a$, $2b$, or $2y$)
+        if hashed_password.startswith('$2'):
             try:
-                from passlib.context import CryptContext
-                pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-                return pwd_context.verify(plain_password, hashed_password)
-            except Exception:
+                import bcrypt
+                return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+            except Exception as e:
+                logging.warning(f"bcrypt verification failed: {e}")
                 return False
-        salt, pwd_hash = hashed_password.split('$', 1)
-        check_hash = hashlib.sha256((plain_password + salt).encode()).hexdigest()
-        return check_hash == pwd_hash
-    except Exception:
+        
+        # New SHA256 hash format: salt$hash
+        if '$' in hashed_password and not hashed_password.startswith('$'):
+            salt, pwd_hash = hashed_password.split('$', 1)
+            check_hash = hashlib.sha256((plain_password + salt).encode()).hexdigest()
+            return check_hash == pwd_hash
+        
+        return False
+    except Exception as e:
+        logging.error(f"Password verification error: {e}")
         return False
 
 # Create the main app
