@@ -6,9 +6,11 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import ParentDashboard from "@/pages/ParentDashboard";
 import StudentManagement from "@/pages/StudentManagement";
+import UserManagement from "@/pages/UserManagement";
 import AttendanceScanner from "@/pages/AttendanceScanner";
 import AttendanceHistory from "@/pages/AttendanceHistory";
 import ParentLink from "@/pages/ParentLink";
+import ParentChildLink from "@/pages/ParentChildLink";
 import Downloads from "@/pages/Downloads";
 import { Toaster } from "@/components/ui/sonner";
 
