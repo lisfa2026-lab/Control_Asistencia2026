@@ -152,12 +152,9 @@ class AttendanceStats(BaseModel):
     late_days: int
     attendance_rate: float
 
-# Helper functions
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
+# Helper functions - Using the functions defined at the top of the file
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    return hash_password(password)
 
 def create_access_token(data: dict):
     to_encode = data.copy()
