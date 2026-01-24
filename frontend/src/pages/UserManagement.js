@@ -173,12 +173,14 @@ export default function UserManagement({ user, onLogout }) {
           </TabsList>
 
           {/* Contenido de cada tab */}
-          {Object.keys(ROLE_CONFIG).map(role => (
+          {Object.keys(ROLE_CONFIG).map(role => {
+            const RoleIcon = ROLE_CONFIG[role]?.icon;
+            return (
             <TabsContent key={role} value={role === "staff" ? "staff" : role}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    {ROLE_CONFIG[role]?.icon && <ROLE_CONFIG[role].icon className="h-5 w-5" />}
+                    {RoleIcon && <RoleIcon className="h-5 w-5" />}
                     {ROLE_CONFIG[role]?.label} ({filteredUsers.length})
                   </CardTitle>
                 </CardHeader>
