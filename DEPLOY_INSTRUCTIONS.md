@@ -1,211 +1,225 @@
-# Guía de Despliegue: GitHub + Vercel
+# Instrucciones de Despliegue - LISFA
 
-## 📋 Prerequisitos
+## Opción 1: Vercel + Render.com (Recomendado)
 
-- Cuenta de GitHub conectada
-- Cuenta de Vercel conectada a GitHub
-- Plan de pago en Emergent (para "Save to GitHub")
+### Frontend en Vercel
 
-## 🔗 Paso 1: Subir Código a GitHub
-
-### Opción A: Desde Emergent (Requiere Plan de Pago)
-
-1. **Conectar GitHub:**
-   - Clic en tu perfil → "Connect GitHub"
-   - Autoriza permisos
-
-2. **Guardar código:**
-   - Botón "Save to GitHub"
-   - Repositorio: `https://github.com/lisfa2026-lab/CONTROL-DE-ASISTENCIA`
-   - Branch: `main` o `develop`
-   - Push code
-
-### Opción B: Manual (Si no tienes plan de pago)
-
-1. **Clonar repositorio localmente:**
+1. **Preparar el proyecto:**
    ```bash
-   git clone https://github.com/lisfa2026-lab/CONTROL-DE-ASISTENCIA.git
-   cd CONTROL-DE-ASISTENCIA
+   cd frontend
+   yarn build
    ```
 
-2. **Copiar archivos del proyecto:**
-   - Descarga todos los archivos de `/app/backend` y `/app/frontend`
-   - Copia al repositorio local
+2. **Subir a GitHub:**
+   - Crear repositorio en GitHub
+   - Subir carpeta `frontend`
 
-3. **Commit y push:**
-   ```bash
-   git add .
-   git commit -m "feat: Sistema de Control de Asistencia LISFA completo"
-   git push origin main
+3. **Conectar con Vercel:**
+   - Ir a [vercel.com](https://vercel.com)
+   - "New Project" → Importar desde GitHub
+   - Seleccionar el repositorio
+
+4. **Configurar variables de entorno en Vercel:**
+   ```
+   REACT_APP_BACKEND_URL=https://tu-backend.onrender.com
    ```
 
-## 🚀 Paso 2: Desplegar Backend en Vercel
-
-### 2.1 Configurar Backend (FastAPI)
-
-1. **Crear archivo `vercel.json` en `/backend`:**
-
-```json
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "server.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "server.py"
-    },
-    {
-      "src": "/static/(.*)",
-      "dest": "static/$1"
-    }
-  ]
-}
-```
-
-2. **Actualizar `requirements.txt`:**
-Asegúrate que incluya todas las dependencias.
-
-3. **En Vercel:**
-   - Ve a: `https://vercel.com/new?teamSlug=lisfas-projects-0ab613ab`
-   - Import repository: `lisfa2026-lab/CONTROL-DE-ASISTENCIA`
-   - Framework Preset: **Other**
-   - Root Directory: `backend`
-   - Build Command: (dejar vacío)
-   - Output Directory: (dejar vacío)
-
-4. **Configurar Variables de Entorno:**
-   ```
-   MONGO_URL=mongodb+srv://usuario:password@cluster.mongodb.net/
-   DB_NAME=lisfa_attendance
-   JWT_SECRET=lisfa-secret-key-change-in-production
-   CORS_ORIGINS=https://tu-frontend.vercel.app
-   ```
-
-5. **Deploy Backend** → Obtendrás URL como: `https://lisfa-backend.vercel.app`
-
-## 🎨 Paso 3: Desplegar Frontend en Vercel
-
-### 3.1 Configurar Frontend (React)
-
-1. **Actualizar `.env` en `/frontend`:**
-   ```
-   REACT_APP_BACKEND_URL=https://lisfa-backend.vercel.app
-   ```
-
-2. **En Vercel (nuevo proyecto):**
-   - Import same repository
-   - Framework Preset: **Create React App**
-   - Root Directory: `frontend`
-   - Build Command: `yarn build`
-   - Output Directory: `build`
-   - Install Command: `yarn install`
-
-3. **Configurar Variables de Entorno:**
-   ```
-   REACT_APP_BACKEND_URL=https://lisfa-backend.vercel.app
-   ```
-
-4. **Deploy Frontend** → Obtendrás URL como: `https://lisfa-frontend.vercel.app`
-
-### 3.2 Actualizar CORS en Backend
-
-Regresa a la configuración del backend en Vercel y actualiza:
-```
-CORS_ORIGINS=https://lisfa-frontend.vercel.app
-```
-
-Redeploy el backend.
-
-## 🗄️ Paso 4: Configurar MongoDB (Producción)
-
-### Opción 1: MongoDB Atlas (Recomendado)
-
-1. **Crear cuenta:** https://www.mongodb.com/cloud/atlas
-2. **Crear cluster gratuito**
-3. **Configurar:**
-   - Database Access: Crear usuario y contraseña
-   - Network Access: Agregar IP 0.0.0.0/0 (permitir desde cualquier IP)
-4. **Obtener Connection String:**
-   ```
-   mongodb+srv://usuario:password@cluster.mongodb.net/lisfa_attendance
-   ```
-5. **Actualizar en Vercel:** Variable `MONGO_URL`
-
-### Opción 2: Usar MongoDB existente
-Si ya tienes un servidor MongoDB, usa su URL en la variable `MONGO_URL`.
-
-## ✅ Paso 5: Verificar Despliegue
-
-1. **Probar Backend:**
-   ```bash
-   curl https://lisfa-backend.vercel.app/api/
-   # Debe devolver: {"message": "Hello World"}
-   ```
-
-2. **Probar Frontend:**
-   - Abre: `https://lisfa-frontend.vercel.app`
-   - Deberías ver la página de login
-
-3. **Probar Login:**
-   - Email: admin@lisfa.com
-   - Password: admin123
-
-## 🔧 Troubleshooting
-
-### Problema: CORS Error
-**Solución:** Verifica que `CORS_ORIGINS` en backend incluya la URL del frontend.
-
-### Problema: MongoDB Connection Error
-**Solución:** 
-- Verifica que la URL de MongoDB es correcta
-- Verifica que las IPs están permitidas en MongoDB Atlas
-- Verifica usuario y contraseña
-
-### Problema: Build Failed en Frontend
-**Solución:**
-- Verifica que todas las dependencias estén en `package.json`
-- Verifica que no haya errores de sintaxis
-
-### Problema: 404 en rutas de API
-**Solución:** Verifica que el `vercel.json` esté correctamente configurado.
-
-## 📱 Paso 6: Configurar Dominio Personalizado (Opcional)
-
-1. **En Vercel:**
-   - Project Settings → Domains
-   - Add domain: `lisfa.tudominio.com`
-   - Configurar DNS según instrucciones
-
-2. **Actualizar variables:**
-   - Frontend: `REACT_APP_BACKEND_URL=https://api.lisfa.tudominio.com`
-   - Backend: `CORS_ORIGINS=https://lisfa.tudominio.com`
-
-## 🔐 Consideraciones de Seguridad
-
-1. **Cambiar JWT_SECRET:** Usa un valor secreto único y seguro
-2. **CORS:** En producción, especifica solo las URLs permitidas
-3. **MongoDB:** Restringe acceso por IP si es posible
-4. **Variables de Entorno:** Nunca las subas a GitHub
-
-## 📊 Monitoreo
-
-- **Vercel Dashboard:** Monitorea despliegues y logs
-- **MongoDB Atlas:** Monitorea uso de base de datos
-- **Logs de errores:** Vercel → Project → Deployments → View Logs
-
-## 🆘 Soporte
-
-Si tienes problemas:
-1. Revisa logs en Vercel Dashboard
-2. Verifica variables de entorno
-3. Prueba endpoints individualmente
-4. Revisa la consola del navegador para errores frontend
+5. **Deploy:** Vercel desplegará automáticamente
 
 ---
 
-**Nota:** El proceso completo puede tomar 30-60 minutos la primera vez.
+### Backend en Render.com
+
+1. **Subir a GitHub:**
+   - Crear repositorio en GitHub
+   - Subir carpeta `backend`
+
+2. **Crear servicio en Render:**
+   - Ir a [render.com](https://render.com)
+   - "New" → "Web Service"
+   - Conectar repositorio de GitHub
+
+3. **Configuración del servicio:**
+   - **Name:** lisfa-backend
+   - **Environment:** Python 3
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn server:app --host 0.0.0.0 --port $PORT`
+
+4. **Variables de entorno en Render:**
+   ```
+   MONGO_URL=mongodb+srv://usuario:password@cluster.mongodb.net/lisfa
+   DB_NAME=lisfa_attendance
+   JWT_SECRET=tu-clave-secreta-muy-segura
+   CORS_ORIGINS=https://tu-frontend.vercel.app
+   SMTP_SERVER=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USER=tu_correo@gmail.com
+   SMTP_PASSWORD=tu_contraseña_app
+   ```
+
+5. **Base de datos MongoDB:**
+   - Crear cluster en [MongoDB Atlas](https://www.mongodb.com/atlas)
+   - Obtener connection string
+   - Agregar IP de Render a whitelist
+
+---
+
+## Opción 2: Railway
+
+### Despliegue completo en Railway
+
+1. **Ir a [railway.app](https://railway.app)**
+
+2. **Crear nuevo proyecto:**
+   - "New Project" → "Deploy from GitHub repo"
+
+3. **Agregar servicios:**
+   - Frontend (Node.js)
+   - Backend (Python)
+   - MongoDB (desde Railway)
+
+4. **Variables de entorno:**
+   - Railway genera automáticamente `MONGO_URL` para el servicio MongoDB
+   - Configurar las demás variables manualmente
+
+---
+
+## Opción 3: Heroku
+
+### Backend en Heroku
+
+1. **Crear Procfile:**
+   ```
+   web: uvicorn server:app --host 0.0.0.0 --port $PORT
+   ```
+
+2. **Crear runtime.txt:**
+   ```
+   python-3.11.0
+   ```
+
+3. **Desplegar:**
+   ```bash
+   heroku login
+   heroku create lisfa-backend
+   heroku addons:create mongolab:sandbox
+   git push heroku main
+   ```
+
+---
+
+## Opción 4: VPS (DigitalOcean, AWS, etc.)
+
+### Instalación manual
+
+1. **Actualizar servidor:**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   ```
+
+2. **Instalar dependencias:**
+   ```bash
+   # Python
+   sudo apt install python3 python3-pip python3-venv -y
+   
+   # Node.js
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt install nodejs -y
+   
+   # MongoDB
+   sudo apt install mongodb -y
+   sudo systemctl start mongodb
+   ```
+
+3. **Clonar proyecto:**
+   ```bash
+   git clone tu-repositorio
+   cd lisfa-attendance
+   ```
+
+4. **Configurar backend:**
+   ```bash
+   cd backend
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env
+   nano .env  # Editar configuración
+   ```
+
+5. **Configurar frontend:**
+   ```bash
+   cd frontend
+   npm install
+   npm run build
+   ```
+
+6. **Configurar Nginx:**
+   ```nginx
+   server {
+       listen 80;
+       server_name tu-dominio.com;
+       
+       location / {
+           root /var/www/lisfa/frontend/build;
+           try_files $uri /index.html;
+       }
+       
+       location /api {
+           proxy_pass http://localhost:8001;
+           proxy_set_header Host $host;
+       }
+   }
+   ```
+
+7. **Configurar systemd para backend:**
+   ```ini
+   [Unit]
+   Description=LISFA Backend
+   After=network.target
+   
+   [Service]
+   User=www-data
+   WorkingDirectory=/var/www/lisfa/backend
+   ExecStart=/var/www/lisfa/backend/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8001
+   Restart=always
+   
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+---
+
+## Base de Datos MongoDB Atlas (Gratis)
+
+1. Ir a [mongodb.com/atlas](https://www.mongodb.com/atlas)
+2. Crear cuenta gratuita
+3. Crear cluster (M0 - Free)
+4. Crear usuario de base de datos
+5. Agregar IP a Network Access (0.0.0.0/0 para permitir todas)
+6. Obtener connection string:
+   ```
+   mongodb+srv://usuario:password@cluster0.xxxxx.mongodb.net/lisfa_attendance
+   ```
+
+---
+
+## Verificación Post-Despliegue
+
+1. **Verificar backend:**
+   ```bash
+   curl https://tu-backend.com/api/users
+   ```
+
+2. **Verificar frontend:**
+   - Abrir https://tu-frontend.com
+   - Login con admin@lisfa.com / admin123
+
+3. **Verificar carnets:**
+   - Ir a Estudiantes
+   - Click en "Descargar Carnet"
+
+4. **Verificar notificaciones:**
+   - Vincular un padre a un estudiante
+   - Registrar asistencia
+   - Verificar email recibido
