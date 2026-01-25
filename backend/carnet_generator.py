@@ -290,7 +290,8 @@ class CarnetGenerator:
         c.setFont("Helvetica-Bold", 5)
         c.drawCentredString(CARD_WIDTH/2, qr_section_y, "CÓDIGO QR")
         
-        qr_data = f"LISFA2026{student_code.upper()}"
+        # IMPORTANTE: El QR debe contener el USER ID para que el escáner lo reconozca
+        qr_data = user_data.get('id', user_data.get('qr_data', ''))
         qr_buffer = CarnetGenerator.generate_qr_image(qr_data, size=100)
         
         qr_size = 14 * mm
