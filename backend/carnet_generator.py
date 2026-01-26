@@ -11,60 +11,43 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
 
-# Dimensiones del carnet según especificación: 8.5 cm alto x 5.5 cm ancho (VERTICAL)
-CARD_WIDTH = 55 * mm   # 5.5 cm
-CARD_HEIGHT = 85 * mm  # 8.5 cm
+# Dimensiones del carnet: 8.5 cm alto x 5.5 cm ancho (VERTICAL)
+CARD_WIDTH = 55 * mm
+CARD_HEIGHT = 85 * mm
 
 # Colores institucionales
-COLOR_AZUL_HEADER = (0.22, 0.40, 0.72)  # Azul del header #3866B8
-COLOR_VERDE = (0.18, 0.55, 0.34)  # Verde para validez
+COLOR_AZUL_HEADER = (0.22, 0.40, 0.72)
+COLOR_VERDE = (0.18, 0.55, 0.34)
 COLOR_TEXTO_OSCURO = (0.2, 0.2, 0.2)
 COLOR_TEXTO_GRIS = (0.4, 0.4, 0.4)
-COLOR_BLANCO = (1, 1, 1)
 
 # Categorías disponibles
 CATEGORIAS_ESTUDIANTES = [
-    "Párvulos",
-    "Kinder",
-    "Preparatoria",
-    "1ro. Primaria",
-    "2do. Primaria",
-    "3ro. Primaria",
-    "4to. Primaria",
-    "5to. Primaria",
-    "6to. Primaria",
-    "1ro. Básico A",
-    "1ro. Básico B",
-    "2do. Básico A",
-    "2do. Básico B",
-    "3ro. Básico A",
-    "3ro. Básico B",
-    "4to. Bachillerato en Computación",
-    "4to. Bachillerato en Diseño",
-    "5to. Bachillerato en Computación",
-    "5to. Bachillerato en Diseño"
+    "Párvulos", "Kinder", "Preparatoria",
+    "1ro. Primaria", "2do. Primaria", "3ro. Primaria",
+    "4to. Primaria", "5to. Primaria", "6to. Primaria",
+    "1ro. Básico A", "1ro. Básico B",
+    "2do. Básico A", "2do. Básico B",
+    "3ro. Básico A", "3ro. Básico B",
+    "4to. Bachillerato en Computación", "4to. Bachillerato en Diseño",
+    "5to. Bachillerato en Computación", "5to. Bachillerato en Diseño"
 ]
 
 CATEGORIAS_PERSONAL = [
-    "Personal Administrativo",
-    "Secretaria",
-    "Personal de Biblioteca",
-    "Personal de Servicio",
-    "Personal de Librería",
-    "Coordinación",
-    "Docente"
+    "Personal Administrativo", "Secretaria", "Personal de Biblioteca",
+    "Personal de Servicio", "Personal de Librería", "Coordinación", "Docente"
 ]
 
 class CarnetGenerator:
     
     @staticmethod
-    def generate_qr_image(data: str, size: int = 120) -> BytesIO:
-        """Genera imagen QR optimizada"""
+    def generate_qr_image(data: str, size: int = 200) -> BytesIO:
+        """Genera imagen QR grande y clara para mejor lectura"""
         qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=6,
-            border=1,
+            version=2,  # Versión más alta para mejor definición
+            error_correction=qrcode.constants.ERROR_CORRECT_H,  # Máxima corrección de errores
+            box_size=10,
+            border=2,
         )
         qr.add_data(data)
         qr.make(fit=True)
@@ -73,35 +56,7 @@ class CarnetGenerator:
         img = img.resize((size, size), Image.Resampling.LANCZOS)
         
         buffer = BytesIO()
-        img.save(buffer, format='PNG', optimize=True, compress_level=9)
-        buffer.seek(0)
-        return buffer
-    
-    @staticmethod
-    def generate_barcode_pattern(data: str, width: int, height: int) -> BytesIO:
-        """Genera un patrón de código de barras simple"""
-        import hashlib
-        
-        img = Image.new('RGB', (width, height), 'white')
-        draw = ImageDraw.Draw(img)
-        
-        # Generar patrón basado en hash del dato
-        hash_bytes = hashlib.md5(data.encode()).digest()
-        
-        x = 2
-        bar_unit = max(1, width // 60)
-        
-        for byte in hash_bytes:
-            for bit in range(8):
-                if x >= width - 2:
-                    break
-                bar_width = bar_unit + (byte >> bit & 1)
-                if (byte >> bit) & 1:
-                    draw.rectangle([x, 2, x + bar_width, height - 2], fill='black')
-                x += bar_width + 1
-        
-        buffer = BytesIO()
-        img.save(buffer, format='PNG', optimize=True, compress_level=9)
+        img.save(buffer, format='PNG', optimize=True)
         buffer.seek(0)
         return buffer
     
@@ -123,8 +78,8 @@ class CarnetGenerator:
     @staticmethod
     def generate_carnet(user_data: dict) -> BytesIO:
         """
-        Genera carnet con diseño VERTICAL según ejemplo proporcionado
-        Dimensiones: 8.5 cm (alto) x 5.5 cm (ancho)
+        Genera carnet con QR GRANDE para mejor lectura del escáner Steren COM-5970
+        Sin código de barras - solo QR
         """
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=(CARD_WIDTH, CARD_HEIGHT))
@@ -138,9 +93,8 @@ class CarnetGenerator:
         c.setFillColorRGB(*COLOR_AZUL_HEADER)
         c.rect(0, CARD_HEIGHT - header_height, CARD_WIDTH, header_height, fill=True, stroke=False)
         
-        # === LOGO EN HEADER (izquierda) ===
+        # === LOGO EN HEADER ===
         logo_path = ROOT_DIR / "static" / "logos" / "logo.jpeg"
-        
         logo_size = 9 * mm
         logo_x = 2 * mm
         logo_y = CARD_HEIGHT - header_height + 1.5 * mm
@@ -151,12 +105,9 @@ class CarnetGenerator:
                 if logo_buffer:
                     c.drawImage(
                         ImageReader(logo_buffer),
-                        logo_x,
-                        logo_y,
-                        width=logo_size,
-                        height=logo_size,
-                        preserveAspectRatio=True,
-                        mask='auto'
+                        logo_x, logo_y,
+                        width=logo_size, height=logo_size,
+                        preserveAspectRatio=True, mask='auto'
                     )
             except Exception:
                 pass
@@ -164,222 +115,116 @@ class CarnetGenerator:
         # === TEXTO DEL HEADER ===
         c.setFillColorRGB(1, 1, 1)
         c.setFont("Helvetica-Bold", 5)
-        
-        # Nombre de la institución
         inst_x = logo_x + logo_size + 1*mm
         c.drawString(inst_x, CARD_HEIGHT - 4.5*mm, "LICEO SAN FRANCISCO")
         c.drawString(inst_x, CARD_HEIGHT - 7.5*mm, "DE ASÍS - LISFA")
         
-        # Año e ID (derecha)
         c.setFont("Helvetica-Bold", 7)
         c.drawRightString(CARD_WIDTH - 2*mm, CARD_HEIGHT - 5*mm, "2026")
         c.setFont("Helvetica", 5)
         c.drawRightString(CARD_WIDTH - 2*mm, CARD_HEIGHT - 8.5*mm, "ID")
         
-        # === SECCIÓN DE FOTO Y DATOS ===
+        # === INFORMACIÓN DEL USUARIO (parte superior) ===
         content_top = CARD_HEIGHT - header_height - 3*mm
         
-        # Foto (rectángulo a la izquierda)
-        photo_width = 14 * mm
-        photo_height = 17 * mm
-        photo_x = 3 * mm
-        photo_y = content_top - photo_height
-        
-        # Marco de la foto
-        c.setStrokeColorRGB(0.85, 0.85, 0.85)
-        c.setLineWidth(0.5)
-        c.rect(photo_x, photo_y, photo_width, photo_height, fill=False, stroke=True)
-        
-        # Placeholder o foto
-        photo_loaded = False
-        if user_data.get('photo_url'):
-            photo_path = ROOT_DIR / user_data['photo_url'].lstrip('/')
-            if photo_path.exists():
-                try:
-                    # Optimizar foto
-                    img = Image.open(str(photo_path))
-                    img.thumbnail((100, 120), Image.Resampling.LANCZOS)
-                    if img.mode != 'RGB':
-                        img = img.convert('RGB')
-                    photo_buffer = BytesIO()
-                    img.save(photo_buffer, format='JPEG', quality=60, optimize=True)
-                    photo_buffer.seek(0)
-                    
-                    c.drawImage(
-                        ImageReader(photo_buffer),
-                        photo_x + 0.3*mm,
-                        photo_y + 0.3*mm,
-                        width=photo_width - 0.6*mm,
-                        height=photo_height - 0.6*mm,
-                        preserveAspectRatio=True
-                    )
-                    photo_loaded = True
-                except Exception:
-                    pass
-        
-        if not photo_loaded:
-            c.setFillColorRGB(0.95, 0.95, 0.95)
-            c.rect(photo_x + 0.3*mm, photo_y + 0.3*mm, photo_width - 0.6*mm, photo_height - 0.6*mm, fill=True, stroke=False)
-            c.setFillColorRGB(0.6, 0.6, 0.6)
-            c.setFont("Helvetica", 5)
-            c.drawCentredString(photo_x + photo_width/2, photo_y + photo_height/2, "FOTO")
-        
-        # === INFORMACIÓN DEL USUARIO ===
-        info_x = photo_x + photo_width + 2*mm
-        info_y = content_top - 3*mm
-        max_info_width = CARD_WIDTH - info_x - 2*mm
-        
-        # Nombre completo
+        # Nombre completo centrado
         c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.setFont("Helvetica-Bold", 6)
-        full_name = user_data.get('full_name', 'NOMBRE')
+        c.setFont("Helvetica-Bold", 8)
+        full_name = user_data.get('full_name', 'NOMBRE').upper()
         
-        # Dividir nombre en líneas
-        words = full_name.upper().split()
-        lines = []
-        current_line = ""
-        for word in words:
-            test_line = current_line + " " + word if current_line else word
-            if c.stringWidth(test_line, "Helvetica-Bold", 6) < max_info_width:
-                current_line = test_line
-            else:
-                if current_line:
-                    lines.append(current_line)
-                current_line = word
-        if current_line:
-            lines.append(current_line)
-        
-        for line in lines[:2]:
-            c.drawString(info_x, info_y, line)
-            info_y -= 3*mm
-        
-        info_y -= 1*mm
+        # Dividir nombre si es muy largo
+        if len(full_name) > 20:
+            words = full_name.split()
+            mid = len(words) // 2
+            line1 = ' '.join(words[:mid])
+            line2 = ' '.join(words[mid:])
+            c.drawCentredString(CARD_WIDTH/2, content_top - 2*mm, line1)
+            c.drawCentredString(CARD_WIDTH/2, content_top - 5.5*mm, line2)
+            name_bottom = content_top - 8*mm
+        else:
+            c.drawCentredString(CARD_WIDTH/2, content_top - 3*mm, full_name)
+            name_bottom = content_top - 6*mm
         
         # Badge de rol
         role = user_data.get('role', 'student')
-        role_text = "ESTUDIANTE" if role == 'student' else "PERSONAL"
+        role_text = {
+            'student': 'ESTUDIANTE',
+            'teacher': 'DOCENTE', 
+            'admin': 'ADMINISTRADOR',
+            'staff': 'PERSONAL'
+        }.get(role, 'USUARIO')
         
-        badge_width = 17*mm
-        badge_height = 3.2*mm
+        badge_width = 22*mm
+        badge_height = 4*mm
+        badge_x = (CARD_WIDTH - badge_width) / 2
+        badge_y = name_bottom - 5*mm
+        
         c.setFillColorRGB(0.15, 0.2, 0.3)
-        c.roundRect(info_x, info_y - 0.5*mm, badge_width, badge_height, 1*mm, fill=True, stroke=False)
+        c.roundRect(badge_x, badge_y, badge_width, badge_height, 1.5*mm, fill=True, stroke=False)
         c.setFillColorRGB(1, 1, 1)
-        c.setFont("Helvetica-Bold", 4.5)
-        c.drawCentredString(info_x + badge_width/2, info_y + 0.3*mm, role_text)
+        c.setFont("Helvetica-Bold", 6)
+        c.drawCentredString(CARD_WIDTH/2, badge_y + 1*mm, role_text)
         
-        info_y -= 4.5*mm
+        # Categoría/Grado
+        category = user_data.get('category', user_data.get('grade', ''))
+        if category:
+            c.setFillColorRGB(*COLOR_TEXTO_GRIS)
+            c.setFont("Helvetica", 6)
+            c.drawCentredString(CARD_WIDTH/2, badge_y - 4*mm, category)
         
-        # Categoría
-        c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.setFont("Helvetica", 5)
-        category = user_data.get('category', user_data.get('grade', 'N/A'))
-        c.drawString(info_x, info_y, (category or 'N/A')[:16])
-        
-        info_y -= 3*mm
-        
-        # Código
-        c.setFillColorRGB(0.2, 0.4, 0.7)
-        c.setFont("Helvetica-Bold", 5)
-        student_code = user_data.get('student_id', user_data.get('id', 'EST001'))[:10]
-        c.drawString(info_x, info_y, student_code.upper())
-        
-        # === CÓDIGO QR ===
-        qr_section_y = photo_y - 4*mm
+        # === CÓDIGO QR GRANDE ===
+        qr_section_y = badge_y - 8*mm
         
         c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.setFont("Helvetica-Bold", 5)
-        c.drawCentredString(CARD_WIDTH/2, qr_section_y, "CÓDIGO QR")
+        c.setFont("Helvetica-Bold", 6)
+        c.drawCentredString(CARD_WIDTH/2, qr_section_y, "ESCANEAR PARA ASISTENCIA")
         
-        # IMPORTANTE: El QR debe contener el USER ID para que el escáner lo reconozca
-        qr_data = user_data.get('id', user_data.get('qr_data', ''))
-        qr_buffer = CarnetGenerator.generate_qr_image(qr_data, size=100)
+        # QR con el USER ID (lo que el sistema necesita)
+        user_id = user_data.get('id', user_data.get('qr_data', ''))
+        qr_buffer = CarnetGenerator.generate_qr_image(user_id, size=200)
         
-        qr_size = 14 * mm
+        # QR más grande - 28mm (antes era 14mm)
+        qr_size = 28 * mm
         qr_x = (CARD_WIDTH - qr_size) / 2
-        qr_y = qr_section_y - qr_size - 2*mm
+        qr_y = qr_section_y - qr_size - 3*mm
+        
+        # Borde alrededor del QR para mejor contraste
+        c.setStrokeColorRGB(0.8, 0.8, 0.8)
+        c.setLineWidth(0.5)
+        c.rect(qr_x - 1*mm, qr_y - 1*mm, qr_size + 2*mm, qr_size + 2*mm, fill=False, stroke=True)
         
         c.drawImage(
             ImageReader(qr_buffer),
-            qr_x,
-            qr_y,
-            width=qr_size,
-            height=qr_size
+            qr_x, qr_y,
+            width=qr_size, height=qr_size
         )
         
-        # Texto bajo QR
+        # Código corto debajo del QR
+        student_code = user_data.get('student_id', user_id[:8] if user_id else 'N/A')
         c.setFillColorRGB(*COLOR_TEXTO_GRIS)
-        c.setFont("Helvetica", 3.5)
-        c.drawCentredString(CARD_WIDTH/2, qr_y - 2*mm, qr_data)
-        
-        # === CÓDIGO DE BARRAS ===
-        barcode_section_y = qr_y - 5*mm
-        
-        c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.setFont("Helvetica-Bold", 5)
-        c.drawCentredString(CARD_WIDTH/2, barcode_section_y, "CÓDIGO DE BARRAS")
-        
-        # Generar código de barras
-        barcode_width = int(38 * mm / 0.35)  # pixels
-        barcode_height = 20
-        barcode_buffer = CarnetGenerator.generate_barcode_pattern(qr_data, barcode_width, barcode_height)
-        
-        barcode_y = barcode_section_y - 7*mm
-        barcode_draw_width = 38*mm
-        barcode_draw_height = 5*mm
-        barcode_x = (CARD_WIDTH - barcode_draw_width) / 2
-        
-        c.drawImage(
-            ImageReader(barcode_buffer),
-            barcode_x,
-            barcode_y,
-            width=barcode_draw_width,
-            height=barcode_draw_height
-        )
-        
-        # Texto bajo código de barras
-        c.setFillColorRGB(*COLOR_TEXTO_GRIS)
-        c.setFont("Helvetica", 3.5)
-        c.drawCentredString(CARD_WIDTH/2, barcode_y - 2*mm, qr_data)
+        c.setFont("Helvetica", 5)
+        c.drawCentredString(CARD_WIDTH/2, qr_y - 3*mm, f"ID: {student_code}")
         
         # === INFORMACIÓN INFERIOR ===
-        info_section_y = barcode_y - 5*mm
+        info_y = qr_y - 7*mm
         
-        c.setFont("Helvetica", 4.5)
-        
-        # Año Lectivo
+        c.setFont("Helvetica", 5)
         c.setFillColorRGB(*COLOR_TEXTO_GRIS)
-        c.drawString(3*mm, info_section_y, "Año Lectivo:")
+        c.drawString(3*mm, info_y, "Contacto:")
         c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.drawRightString(CARD_WIDTH - 3*mm, info_section_y, "2026")
+        c.drawRightString(CARD_WIDTH - 3*mm, info_y, "+502 30624815")
         
-        info_section_y -= 3*mm
-        
-        # Contacto
+        info_y -= 3*mm
         c.setFillColorRGB(*COLOR_TEXTO_GRIS)
-        c.drawString(3*mm, info_section_y, "Contacto:")
-        c.setFillColorRGB(*COLOR_TEXTO_OSCURO)
-        c.drawRightString(CARD_WIDTH - 3*mm, info_section_y, "+502 30624815")
-        
-        info_section_y -= 3*mm
-        
-        # Válido hasta
-        c.setFillColorRGB(*COLOR_TEXTO_GRIS)
-        c.drawString(3*mm, info_section_y, "Válido hasta:")
+        c.drawString(3*mm, info_y, "Válido:")
         c.setFillColorRGB(*COLOR_VERDE)
-        c.setFont("Helvetica-Bold", 4.5)
-        c.drawRightString(CARD_WIDTH - 3*mm, info_section_y, "Dic 2026")
+        c.setFont("Helvetica-Bold", 5)
+        c.drawRightString(CARD_WIDTH - 3*mm, info_y, "Dic 2026")
         
         # === FOOTER ===
-        footer_y = 3.5*mm
-        
         c.setFillColorRGB(*COLOR_TEXTO_GRIS)
         c.setFont("Helvetica", 3.5)
-        c.drawCentredString(CARD_WIDTH/2, footer_y + 2*mm, "Este carnet es propiedad del")
-        c.drawCentredString(CARD_WIDTH/2, footer_y, "Liceo San Francisco de Asís")
-        
-        c.setFillColorRGB(0.2, 0.4, 0.7)
-        c.setFont("Helvetica-Bold", 3.5)
-        c.drawCentredString(CARD_WIDTH/2, footer_y - 2.5*mm, "LISFA - Educación de Calidad")
+        c.drawCentredString(CARD_WIDTH/2, 3*mm, "Liceo San Francisco de Asís - LISFA")
         
         c.save()
         buffer.seek(0)
@@ -387,16 +232,13 @@ class CarnetGenerator:
     
     @staticmethod
     def get_categorias_by_role(role: str) -> list:
-        """Devuelve las categorías disponibles según el rol"""
         if role == 'student':
             return CATEGORIAS_ESTUDIANTES
         elif role in ['teacher', 'admin', 'staff']:
             return CATEGORIAS_PERSONAL
         return []
 
-# Funciones auxiliares
 def get_all_categories():
-    """Devuelve todas las categorías disponibles"""
     return {
         'student': CATEGORIAS_ESTUDIANTES,
         'staff': CATEGORIAS_PERSONAL
