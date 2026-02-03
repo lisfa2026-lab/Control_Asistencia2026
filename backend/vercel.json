@@ -2,24 +2,17 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.py",
-      "use": "@vercel/python"
+      "src": "package.json",
+      "use": "@vercel/static-build"
     }
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "server.py"
+      "handle": "filesystem"
     },
     {
-      "src": "/static/(.*)",
-      "dest": "static/$1"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
-  ],
-  "env": {
-    "MONGO_URL": "@mongo_url",
-    "DB_NAME": "lisfa_attendance",
-    "JWT_SECRET": "@jwt_secret",
-    "CORS_ORIGINS": "@cors_origins"
-  }
+  ]
 }
