@@ -148,6 +148,26 @@ function App() {
             path="/descargas"
             element={<Downloads />}
           />
+          <Route
+            path="/reportes"
+            element={
+              user && (user.role === "admin" || user.role === "teacher") ? (
+                <Reports user={user} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/recuperar-clave"
+            element={
+              user && user.role === "admin" ? (
+                <PasswordRecovery user={user} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" richColors />
