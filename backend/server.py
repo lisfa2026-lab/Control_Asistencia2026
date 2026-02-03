@@ -693,7 +693,6 @@ async def download_proyecto():
     """Descarga el archivo ZIP del proyecto completo"""
     zip_path = ROOT_DIR / "static" / "proyecto_LISFA_completo.zip"
     if not zip_path.exists():
-        # Fallback al archivo anterior
         zip_path = ROOT_DIR / "static" / "proyecto_LISFA.zip"
     if not zip_path.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado")
@@ -702,6 +701,408 @@ async def download_proyecto():
         filename="proyecto_LISFA_completo.zip",
         media_type="application/zip"
     )
+
+# ============================================
+# RECUPERACIÓN DE CONTRASEÑAS (Solo Admin)
+# ============================================
+
+class PasswordResetRequest(BaseModel):
+    admin_email: str
+    admin_password: str
+    target_user_email: str
+    new_password: str
+
+@api_router.post("/admin/reset-password")
+async def admin_reset_password(request: PasswordResetRequest):
+    """
+    Recuperación de contraseña - SOLO ADMINISTRADORES
+    Requiere autenticación del admin para ejecutar
+    """
+    try:
+        # Verificar que el solicitante es admin
+        admin = await db.users.find_one({"email": request.admin_email}, {"_id": 0})
+        if not admin:
+            await log_audit("PASSWORD_RESET_FAILED", "unknown", {"reason": "Admin not found", "target": request.target_user_email})
+            raise HTTPException(status_code=401, detail="Credenciales de administrador inválidas")
+        
+        if admin.get('role') != 'admin':
+            await log_audit("PASSWORD_RESET_DENIED", admin.get('id', 'unknown'), {"reason": "Not admin", "target": request.target_user_email})
+            raise HTTPException(status_code=403, detail="Solo los administradores pueden resetear contraseñas")
+        
+        # Verificar contraseña del admin
+        if not verify_password(request.admin_password, admin.get('password', '')):
+            await log_audit("PASSWORD_RESET_FAILED", admin['id'], {"reason": "Wrong admin password", "target": request.target_user_email})
+            raise HTTPException(status_code=401, detail="Contraseña de administrador incorrecta")
+        
+        # Buscar usuario objetivo
+        target_user = await db.users.find_one({"email": request.target_user_email}, {"_id": 0})
+        if not target_user:
+            await log_audit("PASSWORD_RESET_FAILED", admin['id'], {"reason": "Target user not found", "target": request.target_user_email})
+            raise HTTPException(status_code=404, detail=f"Usuario {request.target_user_email} no encontrado")
+        
+        # Generar nuevo hash de contraseña
+        new_hash = hash_password(request.new_password)
+        
+        # Actualizar contraseña
+        await db.users.update_one(
+            {"email": request.target_user_email},
+            {"$set": {"password": new_hash, "password_changed_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Registrar en audit log
+        await log_audit("PASSWORD_RESET_SUCCESS", admin['id'], {
+            "admin_name": admin['full_name'],
+            "target_user": request.target_user_email,
+            "target_name": target_user['full_name']
+        })
+        
+        logger.info(f"Password reset: Admin {admin['full_name']} reset password for {target_user['full_name']}")
+        
+        return {
+            "success": True,
+            "message": f"Contraseña actualizada para {target_user['full_name']}",
+            "target_email": request.target_user_email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+@api_router.get("/admin/audit-logs")
+async def get_audit_logs(
+    limit: int = Query(100, le=500),
+    action: Optional[str] = None
+):
+    """Obtener logs de auditoría - Solo Admin"""
+    try:
+        query = {}
+        if action:
+            query["action"] = action
+        
+        logs = await db.audit_logs.find(query, {"_id": 0}).sort("timestamp", -1).limit(limit).to_list(limit)
+        return logs
+    except Exception as e:
+        logger.error(f"Error getting audit logs: {e}")
+        return []
+
+# ============================================
+# REPORTES EN TIEMPO REAL
+# ============================================
+
+@api_router.get("/reports/attendance")
+async def get_attendance_report(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    grade: Optional[str] = None,
+    section: Optional[str] = None,
+    user_id: Optional[str] = None,
+    role: Optional[str] = None
+):
+    """
+    Generar reporte de asistencia con filtros
+    Filtros: fecha, grado, sección, usuario individual, rol
+    """
+    try:
+        query = {}
+        
+        # Filtro por rango de fechas
+        if date_from:
+            query["date"] = {"$gte": date_from}
+        if date_to:
+            if "date" in query:
+                query["date"]["$lte"] = date_to
+            else:
+                query["date"] = {"$lte": date_to}
+        
+        # Filtro por usuario específico
+        if user_id:
+            query["user_id"] = user_id
+        
+        # Filtro por rol
+        if role:
+            query["user_role"] = role
+        
+        # Obtener registros de asistencia
+        attendance_records = await db.attendance.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+        
+        # Si hay filtro por grado o sección, filtrar por usuarios
+        if grade or section:
+            user_query = {}
+            if grade:
+                user_query["$or"] = [{"category": grade}, {"grade": grade}]
+            if section:
+                user_query["section"] = section
+            
+            matching_users = await db.users.find(user_query, {"id": 1, "_id": 0}).to_list(1000)
+            matching_ids = [u['id'] for u in matching_users]
+            
+            attendance_records = [r for r in attendance_records if r.get('user_id') in matching_ids]
+        
+        # Calcular estadísticas
+        total = len(attendance_records)
+        present = len([r for r in attendance_records if r.get('status') == 'present'])
+        late = len([r for r in attendance_records if r.get('status') == 'late'])
+        absent = len([r for r in attendance_records if r.get('status') == 'absent'])
+        
+        return {
+            "records": attendance_records,
+            "stats": {
+                "total": total,
+                "present": present,
+                "late": late,
+                "absent": absent,
+                "attendance_rate": round((present + late) / total * 100, 2) if total > 0 else 0
+            },
+            "filters_applied": {
+                "date_from": date_from,
+                "date_to": date_to,
+                "grade": grade,
+                "section": section,
+                "user_id": user_id,
+                "role": role
+            }
+        }
+    except Exception as e:
+        logger.error(f"Report generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error generando reporte: {str(e)}")
+
+@api_router.get("/reports/export/pdf")
+async def export_attendance_pdf(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    grade: Optional[str] = None,
+    title: str = "Reporte de Asistencia"
+):
+    """Exportar reporte de asistencia a PDF"""
+    try:
+        # Obtener datos del reporte
+        report_data = await get_attendance_report(date_from=date_from, date_to=date_to, grade=grade)
+        records = report_data["records"]
+        stats = report_data["stats"]
+        
+        # Crear PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            alignment=1,
+            spaceAfter=20
+        )
+        elements.append(Paragraph(f"LICEO SAN FRANCISCO DE ASÍS", title_style))
+        elements.append(Paragraph(title, styles['Heading2']))
+        elements.append(Spacer(1, 12))
+        
+        # Información del reporte
+        info_text = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        if date_from:
+            info_text += f" | Desde: {date_from}"
+        if date_to:
+            info_text += f" | Hasta: {date_to}"
+        if grade:
+            info_text += f" | Grado: {grade}"
+        elements.append(Paragraph(info_text, styles['Normal']))
+        elements.append(Spacer(1, 20))
+        
+        # Estadísticas
+        stats_data = [
+            ["Total Registros", "Presentes", "Tardanzas", "Ausentes", "% Asistencia"],
+            [str(stats['total']), str(stats['present']), str(stats['late']), str(stats['absent']), f"{stats['attendance_rate']}%"]
+        ]
+        stats_table = Table(stats_data, colWidths=[100, 80, 80, 80, 80])
+        stats_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(stats_table)
+        elements.append(Spacer(1, 20))
+        
+        # Tabla de registros
+        if records:
+            elements.append(Paragraph("Detalle de Registros", styles['Heading3']))
+            elements.append(Spacer(1, 10))
+            
+            table_data = [["Fecha", "Nombre", "Rol", "Entrada", "Salida", "Estado"]]
+            for r in records[:100]:  # Limitar a 100 registros
+                table_data.append([
+                    r.get('date', ''),
+                    r.get('user_name', '')[:25],
+                    r.get('user_role', ''),
+                    r.get('check_in_time', '')[:19].replace('T', ' ') if r.get('check_in_time') else '',
+                    r.get('check_out_time', '')[:19].replace('T', ' ') if r.get('check_out_time') else '-',
+                    r.get('status', '')
+                ])
+            
+            detail_table = Table(table_data, colWidths=[70, 120, 60, 85, 85, 60])
+            detail_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c41e3a')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
+            ]))
+            elements.append(detail_table)
+        
+        doc.build(elements)
+        buffer.seek(0)
+        
+        filename = f"reporte_asistencia_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        return StreamingResponse(
+            buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"PDF export error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error exportando PDF: {str(e)}")
+
+@api_router.get("/reports/export/csv")
+async def export_attendance_csv(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    grade: Optional[str] = None
+):
+    """Exportar reporte de asistencia a CSV/Excel"""
+    try:
+        report_data = await get_attendance_report(date_from=date_from, date_to=date_to, grade=grade)
+        records = report_data["records"]
+        
+        buffer = BytesIO()
+        # Write BOM for Excel compatibility
+        buffer.write(b'\xef\xbb\xbf')
+        
+        writer = csv.writer(buffer)
+        writer.writerow(["Fecha", "Nombre", "Rol", "Entrada", "Salida", "Estado", "ID Usuario"])
+        
+        for r in records:
+            writer.writerow([
+                r.get('date', ''),
+                r.get('user_name', ''),
+                r.get('user_role', ''),
+                r.get('check_in_time', ''),
+                r.get('check_out_time', ''),
+                r.get('status', ''),
+                r.get('user_id', '')
+            ])
+        
+        buffer.seek(0)
+        content = buffer.getvalue().decode('utf-8')
+        
+        filename = f"reporte_asistencia_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+        return StreamingResponse(
+            BytesIO(content.encode('utf-8')),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"CSV export error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error exportando CSV: {str(e)}")
+
+@api_router.get("/reports/by-grade")
+async def get_report_by_grade(date: Optional[str] = None):
+    """Reporte agrupado por grado/categoría"""
+    try:
+        target_date = date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        
+        # Obtener todos los usuarios estudiantes
+        students = await db.users.find({"role": "student"}, {"_id": 0}).to_list(1000)
+        
+        # Obtener asistencia del día
+        attendance = await db.attendance.find({"date": target_date}, {"_id": 0}).to_list(1000)
+        attendance_by_user = {a['user_id']: a for a in attendance}
+        
+        # Agrupar por grado
+        grades = {}
+        for student in students:
+            grade = student.get('category') or student.get('grade') or 'Sin Grado'
+            if grade not in grades:
+                grades[grade] = {"total": 0, "present": 0, "late": 0, "absent": 0, "students": []}
+            
+            grades[grade]["total"] += 1
+            att = attendance_by_user.get(student['id'])
+            
+            student_info = {
+                "id": student['id'],
+                "name": student['full_name'],
+                "status": "absent"
+            }
+            
+            if att:
+                student_info["status"] = att.get('status', 'present')
+                student_info["check_in"] = att.get('check_in_time')
+                student_info["check_out"] = att.get('check_out_time')
+                
+                if att.get('status') == 'present':
+                    grades[grade]["present"] += 1
+                elif att.get('status') == 'late':
+                    grades[grade]["late"] += 1
+                else:
+                    grades[grade]["absent"] += 1
+            else:
+                grades[grade]["absent"] += 1
+            
+            grades[grade]["students"].append(student_info)
+        
+        return {
+            "date": target_date,
+            "grades": grades
+        }
+        
+    except Exception as e:
+        logger.error(f"Grade report error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# ============================================
+# DEBUG ENDPOINT
+# ============================================
+
+@api_router.post("/debug/scan-test")
+async def debug_scan_test(data: dict):
+    """Endpoint de debug para probar escaneos"""
+    try:
+        qr_data = data.get('qr_data', '')
+        logger.info(f"DEBUG SCAN TEST - Received: '{qr_data}' (length: {len(qr_data)}, repr: {repr(qr_data)})")
+        
+        # Buscar usuario
+        user = await db.users.find_one({"id": qr_data}, {"_id": 0, "password": 0})
+        
+        if user:
+            return {
+                "status": "SUCCESS",
+                "message": f"Usuario encontrado: {user['full_name']}",
+                "user": user,
+                "qr_received": qr_data
+            }
+        else:
+            # Listar todos los IDs para debug
+            all_users = await db.users.find({}, {"id": 1, "full_name": 1, "_id": 0}).to_list(10)
+            return {
+                "status": "NOT_FOUND",
+                "message": f"No se encontró usuario con ID: {qr_data}",
+                "qr_received": qr_data,
+                "qr_length": len(qr_data),
+                "available_users": all_users
+            }
+    except Exception as e:
+        return {"status": "ERROR", "error": str(e)}
 
 # Include the router in the main app
 app.include_router(api_router)
