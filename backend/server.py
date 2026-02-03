@@ -423,84 +423,126 @@ async def get_parents_by_student(student_id: str):
     return parent_info
 
 # Attendance Routes
-@api_router.post("/attendance", response_model=Attendance)
+@api_router.post("/attendance")
 async def record_attendance(attendance_data: AttendanceCreate):
-    # Decode QR data to get user_id
-    user_id = attendance_data.qr_data
-    
-    # Get user
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Check if already checked in today
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    existing = await db.attendance.find_one({
-        "user_id": user_id,
-        "date": today
-    }, {"_id": 0})
-    
-    if existing:
-        # Check out
-        if not existing.get('check_out_time'):
-            await db.attendance.update_one(
-                {"id": existing['id']},
-                {"$set": {"check_out_time": datetime.now(timezone.utc).isoformat()}}
-            )
-            return await db.attendance.find_one({"id": existing['id']}, {"_id": 0})
-        else:
-            raise HTTPException(status_code=400, detail="Already checked out today")
-    
-    # Create new attendance record
-    current_time = datetime.now(timezone.utc)
-    status = "present"
-    # Mark as late if after 8 AM
-    if current_time.hour >= 8:
-        status = "late"
-    
-    attendance = Attendance(
-        user_id=user_id,
-        user_name=user['full_name'],
-        user_role=user['role'],
-        check_in_time=current_time,
-        date=today,
-        status=status,
-        recorded_by=attendance_data.recorded_by
-    )
-    
-    attendance_dict = attendance.model_dump()
-    attendance_dict['check_in_time'] = attendance_dict['check_in_time'].isoformat()
-    
-    await db.attendance.insert_one(attendance_dict)
-    
-    # Send notification to parents if student
-    if user['role'] == 'student':
-        # Get all parents linked to this student
-        parents = await db.parents.find({"student_ids": user_id}, {"_id": 0}).to_list(100)
+    """
+    Registrar asistencia - Compatible con lector Steren COM-5970
+    Acepta el user_id directamente desde el QR del carnet
+    """
+    try:
+        qr_data = attendance_data.qr_data.strip()
+        logger.info(f"=== SCAN RECEIVED === QR Data: '{qr_data}' (length: {len(qr_data)})")
         
-        if parents:
-            parent_emails = []
-            for parent in parents:
-                if parent.get('notification_email'):
-                    parent_emails.append(parent['notification_email'])
-                else:
-                    # Try to get email from parent's user record
-                    parent_user = await db.users.find_one({"id": parent['user_id']}, {"_id": 0})
-                    if parent_user and parent_user.get('email'):
-                        parent_emails.append(parent_user['email'])
-            
-            if parent_emails:
-                # Send real-time notification
-                event_type = 'exit' if existing and not existing.get('check_out_time') else 'entry'
-                notification_results = await NotificationService.send_realtime_notification(
-                    user_name=user['full_name'],
-                    event_type=event_type,
-                    event_time=current_time,
-                    parent_emails=parent_emails
+        # Validar que el QR tiene datos
+        if not qr_data or len(qr_data) < 5:
+            logger.error(f"QR data too short or empty: '{qr_data}'")
+            await log_audit("SCAN_ERROR", "system", {"error": "QR data too short", "qr_data": qr_data})
+            raise HTTPException(status_code=400, detail=f"Código QR inválido o muy corto. Recibido: '{qr_data}'")
+        
+        # El QR contiene el user_id directamente
+        user_id = qr_data
+        
+        # Buscar usuario por ID
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        
+        if not user:
+            # Intentar buscar por student_id como fallback
+            user = await db.users.find_one({"student_id": user_id}, {"_id": 0})
+            if user:
+                user_id = user['id']
+                logger.info(f"User found by student_id: {user['full_name']}")
+        
+        if not user:
+            logger.error(f"User NOT FOUND for QR: '{qr_data}'")
+            await log_audit("SCAN_ERROR", "system", {"error": "User not found", "qr_data": qr_data})
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Usuario no encontrado. El código '{qr_data[:20]}...' no corresponde a ningún usuario registrado."
+            )
+        
+        logger.info(f"User FOUND: {user['full_name']} (ID: {user_id})")
+        
+        # Verificar si ya registró asistencia hoy
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        existing = await db.attendance.find_one({
+            "user_id": user_id,
+            "date": today
+        }, {"_id": 0})
+        
+        if existing:
+            # Ya tiene entrada - registrar salida
+            if not existing.get('check_out_time'):
+                checkout_time = datetime.now(timezone.utc).isoformat()
+                await db.attendance.update_one(
+                    {"id": existing['id']},
+                    {"$set": {"check_out_time": checkout_time}}
                 )
-                logger.info(f"Notifications sent: {notification_results}")
-    
-    return attendance
+                logger.info(f"CHECK-OUT registered for {user['full_name']}")
+                await log_audit("CHECK_OUT", user_id, {"user_name": user['full_name'], "time": checkout_time})
+                
+                result = await db.attendance.find_one({"id": existing['id']}, {"_id": 0})
+                return result
+            else:
+                logger.warning(f"User {user['full_name']} already checked out today")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"{user['full_name']} ya registró entrada y salida hoy. No se puede registrar nuevamente."
+                )
+        
+        # Crear nuevo registro de entrada
+        current_time = datetime.now(timezone.utc)
+        local_hour = (current_time.hour - 6) % 24  # Ajuste para Guatemala (UTC-6)
+        status = "present" if local_hour < 8 else "late"
+        
+        attendance = Attendance(
+            user_id=user_id,
+            user_name=user['full_name'],
+            user_role=user['role'],
+            check_in_time=current_time,
+            date=today,
+            status=status,
+            recorded_by=attendance_data.recorded_by or "system"
+        )
+        
+        attendance_dict = attendance.model_dump()
+        attendance_dict['check_in_time'] = attendance_dict['check_in_time'].isoformat()
+        
+        await db.attendance.insert_one(attendance_dict)
+        logger.info(f"CHECK-IN registered for {user['full_name']} - Status: {status}")
+        await log_audit("CHECK_IN", user_id, {"user_name": user['full_name'], "status": status})
+        
+        # Enviar notificación a padres si es estudiante
+        if user['role'] == 'student':
+            try:
+                parents = await db.parents.find({"student_ids": user_id}, {"_id": 0}).to_list(100)
+                if parents:
+                    parent_emails = []
+                    for parent in parents:
+                        if parent.get('notification_email'):
+                            parent_emails.append(parent['notification_email'])
+                    
+                    if parent_emails:
+                        await NotificationService.send_realtime_notification(
+                            user_name=user['full_name'],
+                            event_type='entry',
+                            event_time=current_time,
+                            parent_emails=parent_emails
+                        )
+                        logger.info(f"Notifications sent to: {parent_emails}")
+            except Exception as notif_error:
+                logger.error(f"Notification error (non-blocking): {notif_error}")
+        
+        # Remover _id de MongoDB del resultado
+        del attendance_dict['_id'] if '_id' in attendance_dict else None
+        return attendance_dict
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        logger.error(f"CRITICAL ERROR in attendance: {e}\n{error_trace}")
+        await log_audit("SCAN_CRITICAL_ERROR", "system", {"error": str(e), "trace": error_trace[:500]})
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 @api_router.get("/attendance", response_model=List[Attendance])
 async def get_attendance(
