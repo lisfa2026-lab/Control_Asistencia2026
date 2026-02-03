@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Form, Depends, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from dotenv import load_dotenv
@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 import hashlib
@@ -17,19 +17,31 @@ from jose import JWTError, jwt
 import qrcode
 from io import BytesIO
 from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.units import inch
+from reportlab.lib.units import inch, mm
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 from PIL import Image
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import base64
+import csv
+import traceback
 from notification_service import NotificationService
 from carnet_generator import CarnetGenerator
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Configure logging with more detail
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("lisfa")
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
@@ -40,6 +52,23 @@ db = client[os.environ.get('DB_NAME', 'lisfa_attendance')]
 SECRET_KEY = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Audit log collection
+async def log_audit(action: str, user_id: str, details: dict, ip: str = None):
+    """Log audit events to database"""
+    try:
+        audit_entry = {
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "action": action,
+            "user_id": user_id,
+            "details": details,
+            "ip_address": ip
+        }
+        await db.audit_logs.insert_one(audit_entry)
+        logger.info(f"AUDIT: {action} - User: {user_id} - {details}")
+    except Exception as e:
+        logger.error(f"Failed to log audit: {e}")
 
 # Password hashing using hashlib (compatible with all environments)
 def hash_password(password: str) -> str:
@@ -57,7 +86,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
                 import bcrypt
                 return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
             except Exception as e:
-                logging.warning(f"bcrypt verification failed: {e}")
+                logger.warning(f"bcrypt verification failed: {e}")
                 return False
         
         # New SHA256 hash format: salt$hash
@@ -68,11 +97,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         
         return False
     except Exception as e:
-        logging.error(f"Password verification error: {e}")
+        logger.error(f"Password verification error: {e}")
         return False
 
 # Create the main app
-app = FastAPI()
+app = FastAPI(title="LISFA - Sistema de Control de Asistencia")
 api_router = APIRouter(prefix="/api")
 
 # Health check endpoint for Kubernetes
