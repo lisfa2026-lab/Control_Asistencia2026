@@ -533,7 +533,8 @@ async def record_attendance(attendance_data: AttendanceCreate):
                 logger.error(f"Notification error (non-blocking): {notif_error}")
         
         # Remover _id de MongoDB del resultado
-        del attendance_dict['_id'] if '_id' in attendance_dict else None
+        if '_id' in attendance_dict:
+            del attendance_dict['_id']
         return attendance_dict
         
     except HTTPException:
