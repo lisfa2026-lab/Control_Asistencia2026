@@ -314,21 +314,54 @@ async def delete_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "User deleted successfully"}
 
+@api_router.post("/users/{user_id}/photo")
+async def upload_user_photo(user_id: str, file: UploadFile = File(...)):
+    """Subir foto de usuario"""
+    try:
+        # Verificar que el usuario existe
+        user = await db.users.find_one({"id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        # Crear directorio si no existe
+        upload_dir = ROOT_DIR / "static" / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Guardar archivo
+        file_ext = file.filename.split('.')[-1].lower()
+        if file_ext not in ['jpg', 'jpeg', 'png', 'gif']:
+            raise HTTPException(status_code=400, detail="Formato de imagen no válido")
+        
+        filename = f"{user_id}.{file_ext}"
+        file_path = upload_dir / filename
+        
+        content = await file.read()
+        
+        # Optimizar imagen
+        img = Image.open(BytesIO(content))
+        img.thumbnail((400, 400), Image.Resampling.LANCZOS)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Guardar optimizada
+        img.save(str(file_path), 'JPEG', quality=85, optimize=True)
+        
+        photo_url = f"/static/uploads/{user_id}.jpg"
+        await db.users.update_one({"id": user_id}, {"$set": {"photo_url": photo_url}})
+        
+        logger.info(f"Photo uploaded for user {user_id}")
+        return {"photo_url": photo_url, "message": "Foto subida exitosamente"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Photo upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al subir foto: {str(e)}")
+
 @api_router.post("/users/{user_id}/upload-photo")
 async def upload_photo(user_id: str, file: UploadFile = File(...)):
-    # Save file
-    file_ext = file.filename.split('.')[-1]
-    filename = f"{user_id}.{file_ext}"
-    file_path = ROOT_DIR / "static" / "uploads" / filename
-    
-    with open(file_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-    
-    photo_url = f"/static/uploads/{filename}"
-    await db.users.update_one({"id": user_id}, {"$set": {"photo_url": photo_url}})
-    
-    return {"photo_url": photo_url}
+    """Alias para compatibilidad"""
+    return await upload_user_photo(user_id, file)
 
 # Parent Routes
 @api_router.post("/parents", response_model=Parent)
