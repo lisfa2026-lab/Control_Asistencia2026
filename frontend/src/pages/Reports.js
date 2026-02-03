@@ -47,8 +47,8 @@ export default function Reports({ user, onLogout }) {
       const params = new URLSearchParams();
       if (filters.dateFrom) params.append("date_from", filters.dateFrom);
       if (filters.dateTo) params.append("date_to", filters.dateTo);
-      if (filters.grade) params.append("grade", filters.grade);
-      if (filters.role) params.append("role", filters.role);
+      if (filters.grade && filters.grade !== "all") params.append("grade", filters.grade);
+      if (filters.role && filters.role !== "all") params.append("role", filters.role);
 
       const res = await axios.get(`${API}/reports/attendance?${params}`);
       setReportData(res.data);
