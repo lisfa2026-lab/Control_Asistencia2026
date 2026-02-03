@@ -154,7 +154,7 @@ export default function Reports({ user, onLogout }) {
                     <SelectValue placeholder="Todos los grados" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
                     {categories.map(cat => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                     ))}
@@ -168,7 +168,7 @@ export default function Reports({ user, onLogout }) {
                     <SelectValue placeholder="Todos los roles" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="student">Estudiantes</SelectItem>
                     <SelectItem value="teacher">Docentes</SelectItem>
                     <SelectItem value="admin">Administración</SelectItem>
