@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Edit, Trash2, Download, Users, GraduationCap, Briefcase, UserCog } from "lucide-react";
+import { ArrowLeft, Plus, Edit, Trash2, Download, Users, GraduationCap, Briefcase, UserCog, Camera, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -28,6 +28,8 @@ export default function UserManagement({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("student");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -44,7 +46,6 @@ export default function UserManagement({ user, onLogout }) {
   const fetchUsers = async () => {
     try {
       const response = await axios.get(`${API}/users`);
-      // Filtrar padres - ellos no necesitan carnet
       const filteredUsers = response.data.filter(u => u.role !== 'parent');
       setUsers(filteredUsers);
     } catch (error) {
@@ -63,17 +64,55 @@ export default function UserManagement({ user, onLogout }) {
     }
   };
 
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("La foto no debe superar 5MB");
+        return;
+      }
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       if (editingUser) {
-        await axios.put(`${API}/users/${editingUser.id}`, {
+        // Actualizar usuario existente
+        const updateData = {
           full_name: formData.full_name,
           category: formData.category
-        });
+        };
+        await axios.put(`${API}/users/${editingUser.id}`, updateData);
+        
+        // Si hay foto nueva, subirla
+        if (photoFile) {
+          const photoData = new FormData();
+          photoData.append('file', photoFile);
+          await axios.post(`${API}/users/${editingUser.id}/photo`, photoData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
         toast.success("Usuario actualizado");
       } else {
-        await axios.post(`${API}/auth/register`, formData);
+        // Crear nuevo usuario
+        const response = await axios.post(`${API}/auth/register`, formData);
+        const newUserId = response.data.id;
+        
+        // Subir foto si existe
+        if (photoFile && newUserId) {
+          const photoData = new FormData();
+          photoData.append('file', photoFile);
+          await axios.post(`${API}/users/${newUserId}/photo`, photoData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+        }
         toast.success("Usuario registrado");
       }
       setIsDialogOpen(false);
@@ -105,9 +144,23 @@ export default function UserManagement({ user, onLogout }) {
     toast.success(`Descargando carnet de ${userName}`);
   };
 
+  const printCarnet = (userId) => {
+    // Abrir en nueva ventana para imprimir
+    const printWindow = window.open(`${API}/cards/generate/${userId}`, '_blank');
+    if (printWindow) {
+      printWindow.onload = () => {
+        setTimeout(() => {
+          printWindow.print();
+        }, 1000);
+      };
+    }
+  };
+
   const resetForm = () => {
     setFormData({ email: "", password: "", full_name: "", role: "student", category: "" });
     setEditingUser(null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   const openEditDialog = (userToEdit) => {
@@ -119,6 +172,13 @@ export default function UserManagement({ user, onLogout }) {
       role: userToEdit.role,
       category: userToEdit.category || ""
     });
+    setPhotoPreview(userToEdit.photo_url ? `${process.env.REACT_APP_BACKEND_URL}${userToEdit.photo_url}` : null);
+    setPhotoFile(null);
+    setIsDialogOpen(true);
+  };
+
+  const openNewDialog = () => {
+    resetForm();
     setIsDialogOpen(true);
   };
 
@@ -145,17 +205,16 @@ export default function UserManagement({ user, onLogout }) {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-gray-800">Gestión de Usuarios y Carnets</h1>
-              <p className="text-sm text-gray-500">Administrar personal, docentes y estudiantes</p>
+              <p className="text-sm text-gray-500">Administrar personal, docentes y estudiantes con fotos</p>
             </div>
           </div>
-          <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="bg-red-700 hover:bg-red-800">
+          <Button onClick={openNewDialog} className="bg-red-700 hover:bg-red-800">
             <Plus className="h-4 w-4 mr-2" /> Nuevo Usuario
           </Button>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* Tabs por tipo de usuario */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid grid-cols-4 w-full max-w-2xl">
             <TabsTrigger value="student" className="flex items-center gap-2">
@@ -172,15 +231,11 @@ export default function UserManagement({ user, onLogout }) {
             </TabsTrigger>
           </TabsList>
 
-          {/* Contenido de cada tab */}
-          {Object.keys(ROLE_CONFIG).map(role => {
-            const RoleIcon = ROLE_CONFIG[role]?.icon;
-            return (
-            <TabsContent key={role} value={role === "staff" ? "staff" : role}>
+          {["student", "teacher", "staff", "admin"].map(role => (
+            <TabsContent key={role} value={role}>
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    {RoleIcon && <RoleIcon className="h-5 w-5" />}
                     {ROLE_CONFIG[role]?.label} ({filteredUsers.length})
                   </CardTitle>
                 </CardHeader>
@@ -197,12 +252,30 @@ export default function UserManagement({ user, onLogout }) {
                           className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-full ${ROLE_CONFIG[u.role]?.color || 'bg-gray-400'} flex items-center justify-center text-white font-bold`}>
-                              {u.full_name?.charAt(0).toUpperCase()}
+                            {/* Foto del usuario */}
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-300 flex items-center justify-center">
+                              {u.photo_url ? (
+                                <img 
+                                  src={`${process.env.REACT_APP_BACKEND_URL}${u.photo_url}`} 
+                                  alt={u.full_name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div 
+                                className={`w-full h-full ${ROLE_CONFIG[u.role]?.color || 'bg-gray-400'} flex items-center justify-center text-white font-bold text-lg`}
+                                style={{ display: u.photo_url ? 'none' : 'flex' }}
+                              >
+                                {u.full_name?.charAt(0).toUpperCase()}
+                              </div>
                             </div>
                             <div>
                               <p className="font-medium text-gray-800">{u.full_name}</p>
                               <p className="text-sm text-gray-500">{u.category || u.email}</p>
+                              <p className="text-xs text-blue-600">ID: {u.id.slice(0, 8)}...</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -210,14 +283,23 @@ export default function UserManagement({ user, onLogout }) {
                               variant="outline"
                               size="sm"
                               onClick={() => downloadCarnet(u.id, u.full_name)}
-                              data-testid={`download-carnet-${u.id}`}
+                              title="Descargar Carnet"
                             >
                               <Download className="h-4 w-4 mr-1" /> Carnet
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => printCarnet(u.id)}
+                              title="Imprimir Carnet"
+                            >
+                              <Printer className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => openEditDialog(u)}
+                              title="Editar"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -226,6 +308,7 @@ export default function UserManagement({ user, onLogout }) {
                               size="icon"
                               onClick={() => handleDelete(u.id)}
                               className="text-red-600 hover:text-red-700"
+                              title="Eliminar"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -237,20 +320,40 @@ export default function UserManagement({ user, onLogout }) {
                 </CardContent>
               </Card>
             </TabsContent>
-            );
-          })}
+          ))}
         </Tabs>
       </main>
 
       {/* Dialog para agregar/editar */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Foto */}
+            <div className="flex flex-col items-center space-y-2">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 border-2 border-dashed border-gray-400 flex items-center justify-center">
+                {photoPreview ? (
+                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <Label htmlFor="photo-upload" className="cursor-pointer text-sm text-blue-600 hover:underline">
+                {photoPreview ? "Cambiar foto" : "Subir foto"}
+              </Label>
+              <Input
+                id="photo-upload"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+            </div>
+
             <div className="space-y-2">
-              <Label>Nombre Completo</Label>
+              <Label>Nombre Completo *</Label>
               <Input
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
@@ -262,7 +365,7 @@ export default function UserManagement({ user, onLogout }) {
             {!editingUser && (
               <>
                 <div className="space-y-2">
-                  <Label>Correo Electrónico</Label>
+                  <Label>Correo Electrónico *</Label>
                   <Input
                     type="email"
                     value={formData.email}
@@ -272,7 +375,7 @@ export default function UserManagement({ user, onLogout }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Contraseña</Label>
+                  <Label>Contraseña *</Label>
                   <Input
                     type="password"
                     value={formData.password}
@@ -282,7 +385,7 @@ export default function UserManagement({ user, onLogout }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Rol</Label>
+                  <Label>Rol *</Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value) => setFormData({ ...formData, role: value, category: "" })}
@@ -304,13 +407,14 @@ export default function UserManagement({ user, onLogout }) {
             <div className="space-y-2">
               <Label>Categoría / Grado</Label>
               <Select
-                value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                value={formData.category || "none"}
+                onValueChange={(value) => setFormData({ ...formData, category: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Sin categoría</SelectItem>
                   {getCategoryOptions().map((cat) => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
