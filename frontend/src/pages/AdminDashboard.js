@@ -185,8 +185,8 @@ const AdminDashboard = ({ user, onLogout }) => {
                   <Calendar className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Estudiantes (Vista Simple)</h3>
-                  <p className="text-sm text-gray-600">Lista rápida de estudiantes</p>
+                  <h3 className="text-lg font-semibold">Historial de Asistencia</h3>
+                  <p className="text-sm text-gray-600">Ver registros por fecha</p>
                 </div>
               </div>
             </CardContent>
