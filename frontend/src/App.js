@@ -12,6 +12,8 @@ import AttendanceHistory from "@/pages/AttendanceHistory";
 import ParentLink from "@/pages/ParentLink";
 import ParentChildLink from "@/pages/ParentChildLink";
 import Downloads from "@/pages/Downloads";
+import Reports from "@/pages/Reports";
+import PasswordRecovery from "@/pages/PasswordRecovery";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
