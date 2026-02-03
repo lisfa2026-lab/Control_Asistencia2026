@@ -130,21 +130,21 @@ const AdminDashboard = ({ user, onLogout }) => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Escanear Asistencia</h3>
-                  <p className="text-sm text-gray-600">Registrar entrada/salida</p>
+                  <p className="text-sm text-gray-600">USB, Cámara o Manual</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="card-hover cursor-pointer" onClick={() => navigate('/attendance')} data-testid="view-reports-card">
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/reportes')} data-testid="reports-card">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-4">
                 <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #7cb342 0%, #5a9032 100%)' }}>
                   <FileText className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold">Ver Reportes</h3>
-                  <p className="text-sm text-gray-600">Historial y estadísticas</p>
+                  <h3 className="text-lg font-semibold">Reportes y Exportación</h3>
+                  <p className="text-sm text-gray-600">PDF, Excel, Por Grado</p>
                 </div>
               </div>
             </CardContent>
@@ -164,7 +164,21 @@ const AdminDashboard = ({ user, onLogout }) => {
             </CardContent>
           </Card>
 
-          <Card className="card-hover cursor-pointer" onClick={() => navigate('/students')} data-testid="manage-students-card">
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/recuperar-clave')} data-testid="password-recovery-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #e91e63 0%, #c2185b 100%)' }}>
+                  <QrCode className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Recuperar Contraseñas</h3>
+                  <p className="text-sm text-gray-600">Solo administradores</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="card-hover cursor-pointer" onClick={() => navigate('/attendance')} data-testid="history-card">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-4">
                 <div className="p-3 rounded-lg" style={{ background: 'linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%)' }}>
